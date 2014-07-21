@@ -1,0 +1,35 @@
+
+README.loading-ps9-code  --- Fall '91
+
+Problem Set 9 requires some special magic when loading the problem set code.
+This is because we have need of a few procedures that are not normally found in
+the 6.001 student Scheme band. We must import them from the underlying MIT
+Scheme band. We also must define a couple new special forms (macros).
+
+The magic for loading the ps9 code into your Scheme is as follows:
+
+On Chipmunks
+------------
+Evaluate (load "psets:ps9-load.scm") in Scheme. This is done for you
+when you use the normal EXTEND Load Problem Set RETURN 9 RETURN.
+
+
+On  Athena (or anywhere else the 6.001 student band is being used)
+----------
+Evaluate (in Scheme):
+
+(load "/mit/6.001/problem-sets/ps9/ps9-load.scm")
+
+
+In MacScheme or PCScheme or PseudoScheme or Yale's T Scheme
+-----------------------------------------------------------
+Create your own PS9-LOAD.SCM file by uncommenting out the appropriate code in
+PS9-PORTS.SCM and placing it in your load file along with the calls to (load
+"...ps9 file...") that you see at the end of the Chipmunk/Athena PS9-LOAD.SCM
+file. Load this file in the normal way. No other magic is required since these
+do not run a 6.001 student band.
+
+
+
+As always, bugs/comments to bitdiddl@athena.mit.edu
+

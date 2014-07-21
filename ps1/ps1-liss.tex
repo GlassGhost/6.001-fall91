@@ -1,0 +1,573 @@
+\input /sw/6001/6001mac				% On Altdorf.AI.MIT.EDU
+
+\begin{document}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\psetheader{Fall Semester, 1991}{Problem Set 1}
+\medskip
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{flushleft}
+Issued:  Tuesday, September 10 \\
+\smallskip
+Tutorial preparation for: Week of September 16 \\
+\smallskip
+Written solutions due: Friday, September 20 in Recitation \\
+\smallskip
+Reading to be done for this week:
+\begin{tightlist}
+\item ``6.001 General Information'': Review this if you haven't
+already done so.  Note in particular the hours when the lab is open
+and the 6.001 policy on cooperative work.
+
+\item Text: section 1.1.
+
+\item  ``A 6.001 User's Guide to the Chipmunk System'': Chapters 1
+and 2.  Bring this manual to the lab with you to use as a reference.
+\end{tightlist}
+\end{flushleft}
+
+\noindent
+Every homework assignment describes two sorts of activities:
+\begin{tightlist}
+
+\item {\em Tutorial preparation:}  
+These are questions that you should be ready to present orally in
+tutorial.  Your tutor may choose not to cover every question every
+week, but you should be prepared to discuss them.  You should not write
+up answers to these, other than making notes for yourself, if you
+choose.
+
+\item {\em Written assignments:}
+These are due in recitation the end of the following week.  Solutions
+should always be handed in at recitation, and {\bf late work will not
+be accepted.} You can begin working on the assignment now, and through
+next week.  It is to your advantage to get lab work done early, rather
+than waiting until the night before.  Your tutor will look over the
+homework you hand in, and review it with you in tutorial.
+
+\end{tightlist}
+
+Before you can begin work on this assignment, you will need to get a
+copy of the textbook and pick up the manual package.  To obtain the
+manual package, follow the instructions given in the General
+Information memo.
+
+The laboratory assignments for 6.001 have been designed with the
+assumption that you will do the required reading and textbook
+exercises {\em before} you come to the laboratory.  You should also
+read over and think through the entire assignment before you sit down
+at the computer.  It is generally much more efficient to test, debug,
+and run a program that you have planned before coming into lab than to
+try to do the planning ``online.'' Students who have taken 6.001 in
+previous terms report that failing to prepare ahead for laboratory
+assignments generally ensures that the assignments will take much
+longer than necessary.
+
+\pagebreak
+
+%==========================================================================
+\section{Part 1. Tutorial exercises}
+
+You should prepare these exercises for oral presentation in tutorial.
+
+%----------------------------------------------------------------------
+\paragraph{Exercise 1.1}
+Below is a sequence of expressions.  What is the result printed by the
+interpreter in response to each expression?  Assume that the sequence
+is to be evaluated in the order in which it is presented.  (You should
+try to determine the answers to this exercise without actually trying
+these on a computer.)
+
+\beginlisp
+==> (+ 7 8 9)
+\null
+==> (> 10 9.7)
+\null
+==> (- (* 2 5) (/ 16 10))
+\null
+==> *
+\null
+==> (define double (lambda (x) (* x 2)))
+\null
+==> double
+\null
+==> (define c 4)
+\null
+==> c
+\null
+==> (double c)
+\null
+==> c
+\null
+==> (double (double (+ c 5)))
+\null
+==> (define times-2 double)
+\null
+==> (times-2 c)
+\null
+==> (define d c)
+\null
+==> (= c d)
+\null
+==> (if (= (* c 6) (times-2 d))
+        (< c d)
+        (+ c d))
+\null
+==> (cond ((>= c 2) d)
+          ((= c (- d 5)) (+ c d))
+          (else (abs (- c d))))
+\null
+==> (define try (lambda (x) (x 3)))
+\null
+==> (try double)
+\null
+==> (try (lambda (z) (* z z)))
+\endlisp
+
+Observe that some of the examples shown above are indented and
+displayed over several lines for readability.  An expression may be
+typed on a single line or on several, and redundant spaces and
+carriage returns are ignored.  It is to your advantage to format your
+work so that you (and others) can read it easily.
+
+%----------------------------------------------------------------------
+\paragraph{Exercise 2.1}
+Translate the following arithmetic expression into Lisp prefix notation:
+\begin{displaymath}
+\frac{2-(4+6+(8-(10+\frac{12}{14})))}
+     {3 (5+7) (9-11)}
+\end{displaymath}
+
+%----------------------------------------------------------------------
+\paragraph{Exercise 3.1}
+Do exercise 1.4 of the text.
+
+%==========================================================================
+\section{Part 2: Getting started in the lab and using the debugger}
+
+When you come to the lab, find a free computer and log in and
+initialize one of your disks, as described at the beginning of chapter
+1 of the Chipmunk manual.  You should also write your name and address
+on a label affixed to the jacket of the floppy disk.  Floppy disks are
+notoriously unreliable storage media, so it is a good idea to copy
+your data onto a second disk (that is used only for this purpose) when
+you have completed each laboratory assignment.  See the description of
+how to copy disks in the Chipmunk manual, and do not hesitate to ask
+the lab assistants for help.
+
+After you have successfully logged in, load the material for problem
+set 1 using the method described in chapter 1 of the Chipmunk
+manual---namely, press \key{EXTEND} (i.e., the key marked \kkey{2})
+then type {\tt load problem set} and press \key{ENTER}.  When the
+system asks for the problem set number, type {\tt 1} and press
+\key{ENTER}.  The system will load some files and will leave you
+connected to the Scheme interaction buffer, where Scheme prompts you
+for an expression to evaluate.
+
+%----------------------------------------------------------------------
+\subsection{Evaluating expressions} 
+
+To get used to typing at the Chipmunks, check your answers to exercise
+1.  After you type each expression, press the \key{EXECUTE} key (at
+the lower right side of the keyboard) to evaluate the expression and
+see the result.  Notice that when you type a right parenthesis, the
+cursor briefly highlights the matching left parenthesis.  You can
+correct typing errors with the \key{BACKSPACE} key.\footnote{Edwin is
+a version of Emacs, the editor used on Athena workstations.  It has
+many powerful editing features, which you can read about in chapter 2
+of the Chipmunk manual.  Although simple cursor motion will be your
+primary editing tool at first, it will be greatly to your advantage to
+learn to use some of the more sophisticated editing commands as the
+semester progresses.}
+
+To type expressions that go over a single line, use the \key{ENTER}
+key (not the \key{EXECUTE} key) to move to the next line.  Notice that
+the editor automatically ``pretty prints'' your procedure as you type
+it in, indenting lines to the position determined by the number of
+unclosed left parentheses.
+
+%----------------------------------------------------------------------
+\subsection{Using the debugger}
+
+When you program, you will certainly make errors, both simple typographical
+typographical mistakes and more significant conceptual bugs.  Even expert
+programmers produce code that has errors; superior programmers make use of
+debuggers to identify and correct the errors efficiently.  At some point over
+the next month\footnote{Don't do it now---you have enough to do now.}, you
+should read chapter 3 of the Chipmunk manual, which describes Scheme's
+debugging features in detail.  For now, we've provided a simple exercise to
+acquaint you with the debugger.
+
+Loading the code for problem set 1, which you did above, defined three
+tiny procedures called {\tt p1, p2} and {\tt p3}.  We won't show you
+the text of these procedures---the only point of running them is to
+illustrate the debugger.
+
+Evaluate the expression {\tt (p1 1 2)}.  This should signal an error.
+The screen splits into two windows, with the ordinary interaction
+buffer at the top, and a {\tt *Scheme Error*} window at the bottom.
+The error window contains the message
+
+\beginlisp
+Wrong Number of Arguments 1
+within procedure \#[COMPOUND-PROCEDURE P2]
+\endlisp
+
+\noindent
+At the bottom of the screen is a question asking whether or not you
+want to debug the error.
+
+Don't panic.  Beginners have a tendency, when they encounter an error,
+to immediately respond ``No'' to the offer to debug, sometimes without
+even reading the error message.  Let's instead see how Scheme can be
+coaxed into producing some helpful information about the error.
+
+First of all, there is the error message itself.  It says that the
+error was caused by a procedure being called with 1 argument, which is
+the wrong number of arguments for that procedure.  The next line tells
+you that the error occurred within the procedure {\tt P2}, so the
+actual error was that {\tt P2} was called with 1 argument, which is
+the wrong number of arguments for {\tt P2}.
+
+Unfortunately, the error message alone doesn't say where in the code
+the error occurred.  In order to find out more, you need to use the
+debugger.  The debugger allows you to grovel around, examining pieces
+of the execution in progress in order to learn more about what may
+have caused the error.
+
+Type {\tt y} in response to the system's question.
+Scheme should respond:
+
+\beginlisp
+Subproblem Level: 0  Reduction Number: 0
+Expression:
+(P2 B)
+within the procedure P3
+applied to (1 2)
+\endlisp
+
+This says that the expression that caused the error was {\tt (P2 B)},
+within the procedure {\tt P3}, which was called with arguments 1 and
+2.  Ignore the stuff about subproblem and reduction numbers for the
+moment.  You can read about them later in chapter 4 of the Chipmunk
+manual.
+
+The debugger differs from an ordinary Scheme command level, in that you use
+single-keystroke commands, rather than typing expressions and pressing
+\key{EXECUTE}.  One thing you can do is move ``up'' in the evaluation sequence
+to see how the program reached the point that signaled the error.  To do this,
+type the character {\tt u}.  The debugger should show:
+
+\beginlisp
+Subproblem level: 1 Reduction number: 0
+Expression:
+(+ (P2 A) (P2 B))
+within the procedure P3
+applied to (1 2)
+\endlisp
+
+Remember that the expression evaluated to cause the error was {\tt (P2
+B)}.  Now that we have moved ``up,'' we learn that this expression was
+being evaluated as a subproblem of evaluating the expression {\tt (+
+(P2 A) (P2 B))} still within procedure {\tt P3} applied to 1 and 2.
+
+So we've learned from this that the bug is in {\tt P3} where the
+expression {\tt (+ (P2 A) (P2 B))} calls {\tt P2} with the wrong
+number of arguments.  At this point, one would normally quit the
+debugger and edit {\tt P3} to correct the bug.
+
+Before leaving the debugger, let's explore a little more.  Press {\tt
+u} again, and you should see
+
+\beginlisp
+Subproblem Level: 2  Reduction Number: 0
+Expression:
+(+ (P2 X Y) (P3 X Y))
+within the procedure P1
+applied to (1 2)
+\endlisp
+
+which tells us that the program reached the place we just saw above as
+a result of trying to evaluate an expression in {\tt P1}.
+
+Press {\tt u} again and you should see some mysterious stuff.  What
+you are looking at is some of the guts of the Scheme system---the part
+shown here is a piece of the interpreter's read-eval-print loop.
+In general, backing up from any error will eventually land you in the
+guts of the system.  At this point you should stop backing up unless,
+of course, you want to explore what the system looks like.  (Yes:
+almost all of the system is itself a Scheme program.)
+
+In the debugger, the opposite of {\tt u} (``up'') is {\tt d}
+(``down'').  Go down until the point of the actual error, which is as
+far as you can go.
+
+Besides {\tt u} and {\tt d}, there are about a dozen debugger single-character
+commands that perform operations at various levels of obscurity.  You can see a
+list of them by typing {\tt ?} at the debugger.  For more information, see the
+Chipmunk manual.
+
+Type {\tt q} to quit the debugger and return to ordinary Scheme.  (If you are
+left in the *Help* buffer, just press the \key{scheme} key (labeled \kkey{7})
+to return to the Scheme interaction buffer.)
+
+%==========================================================================
+\section{Part 3. Programming Assignment: Graphing Lissajous figures}
+
+Now that you've gained some experience with the Chipmunks, you should
+be ready to work on the programming assignment.  When you are finished
+in the lab, you should write up and hand in the numbered problems
+below.  You should include listings and/or pictures in your
+write-up.  Chapter 1 of the Chipmunk manual explains how to use the
+lab printers.
+
+\newpage
+
+In this assignment, you are to experiment with a simple procedure that
+plots curves called {\em Lissajous figures}.  These are the figures
+traced by a point that moves in two-dimensions, whose $x$ and $y$
+coordinates are given by sinusoids:
+\begin{displaymath}
+   x(t) = A_x \sin f_xt \qquad y(t) = A_y \sin (f_y t + \phi)
+\end{displaymath}
+
+For example, if we connect AC signals to the horizontal and vertical
+deflection grids of an oscilloscope, the image traced will be a
+Lissajous figure.  The shape of the figure is determined by the
+signals' amplitudes $A_x$ and $A_y$, and frequencies $f_x$ and $f_y$,
+and the phase difference $\phi$ between the two signals.
+
+Another way to think of this is as follows: imagine you grip a pen with your
+left and right hands.  Now you move your right hand side-to-side on a piece of
+paper a distance $A_x$ at $f_x$ times per second while moving your left hand
+up-and-down on the paper a distance of $A_y$ at $f_y$ times per second.  The
+phase difference $\phi$ determines how far up the page your left hand initially
+travels before you decide to move it down (the total vertical sweep being still
+$A_y$).
+
+The following procedure plots Lissajous figures.  The arguments to the
+procedure are the amplitudes, frequencies, and phase difference {\tt
+phi} of the two sinusoids, and a parameter {\tt dt} that determines
+the increment at which points are plotted.
+
+\beginlisp
+(define lissajous
+  (lambda (a-x a-y f-x f-y phi dt)
+    ;;clear the screen and set graphics at initial point
+    (clear-graphics)
+    (position-pen (sinusoid 0 a-x f-x 0)
+                  (sinusoid 0 a-y f-y phi))
+    (lissajous-loop 0 a-x a-y f-x f-y phi dt))) ;start drawing
+\null
+(define sinusoid
+  (lambda (t a f phi)
+    (* a (sin (+ (* f t) phi)))))
+\null
+(define lissajous-loop
+  (lambda (t a-x a-y f-x f-y phi dt)
+    (draw-line-to (sinusoid t a-x f-x 0)
+                  (sinusoid t a-y f-y phi))
+    (lissajous-loop (+ t dt) a-x a-y f-x f-y phi dt)))
+\endlisp
+
+The {\tt lissajous} procedure uses a procedure {\tt sinusoid} to
+compute the values $A \sin (f t + \phi)$ that are the $x$ and $y$
+coordinates of the points to be plotted.  When {\tt lissajous} starts,
+it clears the graphics screen and positions the graphics pen at the
+initial point corresponding to $t=0$, and then calls {\tt
+lissajous-loop} which moves to the points corresponding to successive
+values of $t$, incremented by $dt$. The primitive procedure {\tt
+draw-line-to} moves the graphics pen to the indicated $x$ and $y$
+coordinates, drawing a line from the current point to the new point.
+
+
+%----------------------------------------------------------------------
+\subsection{Trying the program}
+
+Start a new file on your disk to hold the code for your program by
+pressing {\key{FIND FILE} (\shift \kkey{0})} and enter a name for this
+file: {\tt ps1.scm}.  You can use some other name besides {\tt ps1} if
+you like, but you should end the name in {\tt .scm}.  This tells the
+editor that the file contains Scheme code.  Edwin will inform you that
+this is a new file and will create an empty edit buffer for it.
+Subsequent laboratory assignments will include large amounts of code,
+which will be loaded automatically into an edit buffer when you begin
+work on the assignment.  This time, however, we are asking you to type
+the code yourself to give you practice with the editor.
+
+Type in the definitions of the procedures {\tt lissajous}, {\tt sinusoid}, and
+{\tt lissajous-loop}.  Use the \key{ENTER} key to go from one line to the next,
+so that Edwin will automatically indent the code.  If Edwin's indentation does
+not match what you expected, you have probably omitted a
+parenthesis---observing Edwin's indentation is an excellent way to catch
+parenthesis errors.  It's also a good idea to leave a blank line between
+procedure definitions to enhance readability.
+
+Now ``zap'' your procedures from the editor into Scheme, using the
+\key{SEND BUFFER} key ({\shift \kkey{7}}).\footnote{\key{SEND
+BUFFER} transmits the entire buffer to Scheme and is the easiest
+thing to use when you only have one or two procedures in your buffer.
+With larger amounts of code, it is better to use other ``zap''
+commands that transmit only selected parts of the buffer, such as
+individual procedure definitions.  For a description of these
+commands, see Chapter 3 of the Chipmunk manual, under the heading
+``Scheme Interaction.''}  If you get an error at this point, you
+probably have a badly formed procedure definition.  Ask for help.
+Otherwise, move to the Scheme interaction buffer by pressing the 
+\key{SCHEME} key (\kkey{7}).
+
+Test your program by evaluating
+
+\beginlisp
+(lissajous 150 150 1 1 0.2 0.05)
+\endlisp
+
+This should draw an ellipse.  To see the drawing, press the key marked
+\key{GRAPHICS} at the upper right of the keyboard.  The Chipmunk
+system enables you to view either text or graphics on the screen, or
+to see both at once.  This is controlled by the keys marked
+\key{GRAPHICS} and \key{ALPHA}.  Pressing \key{GRAPHICS} shows the
+graphics screen superimposed on the text.  Pressing \key{GRAPHICS}
+again hides the text screen and shows only graphics.  \key{ALPHA}
+works similarly, showing the text screen and hiding the graphics
+screen.
+
+Observe that the procedure does not terminate.  It will keep running
+until you stop it manually by pressing \key{ABORT} or by typing control-G.
+(The \key{CONTROL} key at the upper left of the keyboard is used like
+a shift key: to type control-G, hold down the \key{CTRL} key and
+press G.)
+
+To save your work on your disk, press {\key{SAVE FILE} (\kkey{0})}.
+It's a good idea to save your work periodically to protect yourself
+against system crashes.
+
+
+%----------------------------------------------------------------------
+\paragraph{Exercise 3.1}
+Define a procedure {\tt ampl-mult} that takes as argument a number
+$m$, and calls {\tt lissajous} with $A_x$ equal to 50, $A_y$ equal to
+$m$ times 50, $f_x$ and $f_y$ both 1, $\phi$ equal to $\pi/2$ and {\tt
+dt} as .05.  
+
+You will need to define a value for the symbol {\tt pi}:
+
+\beginlisp
+(define pi (* 4 (atan 1 1)))
+\endlisp
+
+\noindent
+This expression defines {\tt pi} to be 4 times the arctangent of 1,
+which is $\pi/4$.  Use the value of $\pi$ to define a value for $\pi/2$.
+
+Explore the family of figures generated by {\tt ampl-mult} as {\tt m}
+varies smoothly from $-2$ to 2.  By modifying {\tt ampl-mult}, perform
+the same analysis for figures with $f_x=1$ and $f_y=3$.  Turn in
+sketches of some of the figures you find.  You needn't go to the
+trouble of making graphics printouts of the screen---hand sketches
+will be fine.
+
+%----------------------------------------------------------------------
+\paragraph{Exercise 3.2}
+Define a procedure {\tt phase-shift}, which takes as arguments numbers
+$f_x$, $f_y$, and $\phi$, and calls {\tt lissajous} with $A_x$ and
+$A_y$ both equal to 150, $f_x$, $f_y$, and $\phi$ as specified, and
+{\tt dt} equal to 0.05.  This corresponds to using an oscilloscope to
+observe a sinusoid plotted against the same signal, shifted by a given
+phase.  Using this procedure, explore the family of figures generated
+for $f_x=1$ and $f_y=2$. What does the resulting figure look like for
+$\phi=0$? For $\phi=\pi/2$? For $\phi=\pi$? For intermediate values of
+$\phi$?
+
+In addition to sketches of the figures, turn in a printout of the
+procedure {\tt phase-shift}.
+
+%----------------------------------------------------------------------
+\paragraph{Exercise 3.3}
+Examine the Lissajous figures formed by signals with different
+frequencies: $f_x=2$ and $f_y=3$; $f_x=5$ and $f_y=6$; $f_x=3$ and
+$f_y=5$. For some of these you may want to decrease the value of {\tt
+dt} to obtain a more accurate plot.  Experiment with the figures,
+noting how they change as the phase shift varies from 0 to $\pi$.
+Turn in sketches of some of the interesting figures that you find.
+
+%----------------------------------------------------------------------
+\paragraph{Exercise 3.4}
+If we choose frequencies $f_x$ and $f_y$ that are integers greater
+than 1, then the Lissajous figure will be completely drawn by the time
+$t=2\pi$.
+
+(a) Explain why.
+
+(b) Use this idea to modify the {\tt lissajous} program so that it stops when
+$t \geq 2 \pi$.  This requires only a small modification to the
+{\tt lissajous-loop} procedure.  Turn in a listing of your modified procedure.
+
+(c) What does Scheme print when your procedure stops?  Why does it print this?
+
+%----------------------------------------------------------------------
+\paragraph{Exercise 3.5}
+Using your modified procedure of exercise 3.4, draw a Lissajous figure
+with $f_x=6$ and $f_y=8$.  How many times is the figure traced before
+the program stops?  Describe how to modify your program so that it
+will stop after drawing the figure once.  You need consider only the
+case where the frequencies are integers.  Explain the idea behind your
+stop rule.  (Hint: You may want to make use of the Scheme primitive
+{\tt gcd}, which computes the greatest common divisor of two integers.
+See section 1.2.5 of the course text.)
+
+%----------------------------------------------------------------------
+\paragraph{Exercise 3.6}
+Some Lissajous figures contain places where the curve ``stops'' and
+the graph backs up and retraces itself.  An example is $f_x=3$,
+$f_y=5$, $\phi=0$.  
+
+(a) Why does this happen?  Give some more examples of
+triples $f_x$, $f_y$, and $\phi$ that exhibit this behavior.  
+
+(b) Give a
+rule (in terms of $f_x$, $f_y$, and $\phi$) that predicts which
+figures will contain such ``stop points.''  Explain why your rule works.
+
+(c) Be sure to test your rule by trying various figures (other than those you
+may have already seen earlier in the problem set).
+
+%----------------------------------------------------------------------
+\paragraph{Exercise 3.7}
+Rewrite the Lissajous program using block structure, so that the
+procedures {\tt sinusoid} and {\tt lissajous-loop} are defined
+internally to the {\tt lissajous} procedure.  (See pages 27--28 of the
+text.)  Show how to take advantage of lexical scoping to reduce the
+number of arguments that must be explicitly passed to the
+subprocedures.
+
+%----------------------------------------------------------------------
+\paragraph{Exercise 3.8}
+Rewrite the Lissajous program (either the original version or the one
+from exercise 3.7) to use the abbreviated syntax for defining a
+procedure, i.e.,
+
+\noindent
+{\tt (define ($\langle name\rangle$ $\langle formal\ parameters\rangle$) $\langle body\rangle$)}
+
+\noindent
+instead of
+
+{\tt
+(define $\langle name\rangle$ (lambda $\langle formal\ parameters\rangle$) $\langle body\rangle$)}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\end{document}
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,592 @@
+%Warning: This was Latex'ed on a Mac, to get the
+% this next is to generate figures on the Mac
+\def\picture #1 by #2 (#3){
+  $${\vbox to #2{
+    \hrule width #1 height 0pt depth 0pt
+    \vfill
+    \special{picture #3} % this is the low-level interface
+    }}$$
+  }
+
+\input 6001mac
+
+
+\begin{document}
+
+\psetheader{Fall Semester, 1991}{Problem Set 3}
+
+\medskip
+
+\begin{flushleft}
+Issued:  Tuesday, September 25 \\
+\smallskip
+Tutorial preparation for: Week of September 30\\
+\smallskip
+Written solutions due: Friday, October 4 in Recitation \\
+\smallskip
+Reading: section 2.1 \\
+\end{flushleft}
+
+\section{1. Tutorial exercises}
+
+\paragraph{Exercise 1.1}
+Show how to define a procedure {\tt butlast} that, given a list,
+returns a new list containing all but the last element of the original
+list.  For example
+
+\beginlisp
+==> (butlast '(1 2 3 4 5 6))
+(1 2 3 4 5)
+\endlisp
+
+\paragraph{Exercise 1.2}
+Do exercise 2.17 of the textbook---defining {\tt reverse}. Implement
+both a recursive version and an iterative version of {\tt reverse}.
+
+\paragraph{Exercise 1.3}
+Exercise 2.18 of the textbook.
+
+\paragraph{Exercise 1.4}
+Exercise 2.20 of the textbook.
+
+
+\section{2. A Drawing Language Based on Triangles}
+
+For this assignment, you are to implement a language similar to Peter
+Henderson's ``square limit'' graphics language, which Hal described in
+lecture on September 26.  Before beginning on this programming
+assignment, you should review the notes for that lecture.  Remember
+that the key idea is to represent a ``picture'' as a procedure that
+takes a rectangle as input and causes something to be drawn, scaled to
+fit in the rectangle.
+
+The language we ask you to implement will be similar to Henderson's,
+except based on triangles rather than rectangles.  We begin by
+describing the implementation and by listing the procedures that have
+been included with the code for this problem set.
+
+\subsection{Points and segments}
+
+Points (vectors) are represented as pairs of numbers, and segments are
+represented as pairs of points, just as in the square-limit language:
+
+\beginlisp
+(define make-vector cons)
+(define xcor car)
+(define ycor cdr)
+\null
+(define zero-vector (make-vector 0 0))
+\null
+(define make-segment cons)
+(define seg-start car)
+(define seg-end cdr)
+\endlisp
+
+We will use the operations of vector addition, subtraction, and
+scaling a vector by a number:
+
+\beginlisp
+(define (+vect v1 v2)
+  (make-vector (+ (xcor v1) (xcor v2))
+               (+ (ycor v1) (ycor v2))))
+\null
+(define (-vect v1 v2)
+  (+vect v1 (scale -1 v2)))
+\null
+(define (scale x v)
+  (make-vector (* x (xcor v))
+               (* x (ycor v))))
+\endlisp
+
+In implementing the drawing language, we will often find it necessary
+to shift between the screen coordinate system and various local
+coordinate systems whose origins are at the vertices of various
+triangles.  One useful operation to help accomplish this is {\tt
+shift}, which takes as arguments three vectors---$o_1$, $o_2$ and
+$v$---and ``shifts'' $v$ from the origin $o_1$ to the origin $o_2$.
+That is, if we interpret $v$ as specifying a point by giving an offset
+from $o_1$, then shifted $v$ represents the same point, specified as
+an offset from $o_2$.  See figure~\ref{shift-vector}.
+
+\beginlisp
+(define (shift v o1 o2)
+  (-vect (+vect v o1) o2))
+\endlisp
+
+\begin{figure}
+\picture 2.54in by 2.38 in (shift)
+\caption{{\protect\footnotesize
+Shifting a vector from one origin to another.}}
+\label{shift-vector}
+\end{figure} 
+
+The following procedure takes two points as arguments and draws a line
+between them:
+
+\beginlisp
+(define (drawline start end)
+  (position-pen (xcor start) (ycor start))
+  (draw-line-to (xcor end) (ycor end)))
+\endlisp
+
+\subsection{Triangles}
+
+\beginlisp
+(define make-triangle list)
+\null
+(define origin car)
+(define side1 cadr)
+(define side2 caddr)
+\endlisp
+
+A triangle is represented as a triple of vectors---an origin and two
+sides.  See figure~\ref{triangle}.  The origin is represented as a vector
+with respect to the $(0,0)$ point of the graphics screen coordinates.  The
+two sides are specified as {\em relative vectors}, which give the offsets
+of the other two vertices of the triangle from the triangle's origin.
+
+As shown in figure~\ref{triangle}, we can express the points in the
+interior of a triangle in terms of so-called {\it triangular
+coordinates}, which are pairs $x, y$ such that $x+y \leq 1$.  Another
+way to say this is that each vertex of the triangle can be expressed
+as a vector
+\begin{displaymath}
+x \hbox{\bf\  Side}_1(\hbox{\rm Tri}) + y \hbox{\bf\ Side}_2(\hbox{\rm Tri})
+\end{displaymath}
+where $x+y\leq 1$ and Side$_1$ and Side$_2$ are relative vectors.
+
+As in the square limit language, each triangle determines a coordinate
+map.  This transforms the point $(x, y)$ to the point given by
+\begin{displaymath}
+\hbox{\bf Origin(Tri)} + x \hbox{\bf\  Side}_1\hbox{\rm (Tri)}
++ y \hbox{\bf\ Side}_2\hbox{\rm (Tri)} 
+\end{displaymath}
+This transformation maps the half of the unit square below the line
+$x+y=1$ onto the given triangle.
+
+\beginlisp
+(define (coord-map triangle)
+  (lambda (point)
+    (+vect
+     (+vect (scale (xcor point)
+                   (side1 triangle))
+            (scale (ycor point)
+                   (side2 triangle)))
+     (origin triangle))))
+\endlisp
+
+\begin{figure}
+\picture 5.39 in by 2.22 in (triangle)
+\caption{{\protect\footnotesize
+A triangle represented as origin and two sides; triangular
+coordinates.}}
+\label{triangle}
+\end{figure} 
+
+Finally, we define a standard {\tt screen-triangle}, which is an
+isosceles triangle whose base and height are the length and width of the
+display screen:
+
+\beginlisp
+(define screen-lower-left (make-vector west south))
+(define screen-lower-right (make-vector east south))
+(define screen-upper-left (make-vector  west north))
+\null
+(define screen-lower-edge
+  (-vect screen-lower-right screen-lower-left))
+\null
+(define screen-left-edge
+  (-vect screen-upper-left screen-lower-left))
+\pagebreak
+(define screen-triangle
+  (make-triangle screen-lower-left
+                 (+vect screen-left-edge
+                        (scale 0.5 screen-lower-edge))
+                 screen-lower-edge))
+\endlisp
+The variables {\tt north}, {\tt south}, {\tt east}, and {\tt west}
+(defined in the code) specify the limits of the display screen.
+
+\subsection{Pictures}
+
+As in the square-limit language, a picture is represented as a procedure.
+The procedure
+takes a triangle as argument and draws some design inside the given
+triangle.  {\tt Make-picture} constructs a primitive picture from a
+list of segments:
+\beginlisp
+(define (make-picture seglist)
+  (lambda (triangle)
+    (for-each
+     (lambda (segment)
+       (drawline ((coord-map triangle) (seg-start segment))
+                 ((coord-map triangle) (seg-end segment))))
+     seglist)))
+\endlisp
+As in the square-limit language, we include the following procedure,
+which clears the screen and causes a designated picture to be drawn in
+the standard {\tt screen-triangle}:
+\beginlisp
+(define (draw pict)
+  (clear-graphics)
+  (pict screen-triangle))
+\endlisp
+
+
+We will also define some simple pictures to use as drawing elements:
+the empty picture, a picture that just outlines the triangle, one that
+connects the center of the triangle to the midpoints of the sides, one
+that draws a ``band'' across the triangle, and one that draws a ``V''
+shape.  Figure \ref{sample-figures} shows how these figures are
+specified in terms of triangular coordinates.
+
+\beginlisp
+(define empty-picture (make-picture '()))
+\null
+(define outline-picture
+  (let ((v1 (make-vector 0 0))
+        (v2 (make-vector 0 1))
+        (v3 (make-vector 1 0)))
+    (make-picture (list (make-segment v1 v2)
+                        (make-segment v2 v3)
+                        (make-segment v3 v1)))))
+\null
+(define midpoints
+  (let ((center (make-vector (/ 1 3) (/ 1 3)))
+        (m1 (make-vector (/ 1 2) 0))
+        (m2 (make-vector 0 (/ 1 2)))
+        (m3 (make-vector (/ 1 2) (/ 1 2))))
+    (make-picture (list (make-segment m1 center)
+                        (make-segment m2 center)
+                        (make-segment m3 center)))))
+
+\null
+(define band
+  (let ((a1 (make-vector .4 0))
+        (a2 (make-vector .6 0))
+        (b1 (make-vector 0 .4))
+        (b2 (make-vector 0 .6)))
+    (make-picture (list (make-segment a1 b1)
+                        (make-segment a2 b2)))))
+\null
+(define v-shape
+  (let ((m1 (make-vector (/ 2 9) (/ 2 9)))
+        (m2 (make-vector (/ 4 9) (/ 4 9)))
+        (a1 (make-vector (/ 1 3) 0))
+        (a2 (make-vector (/ 2 3) 0))
+        (b1 (make-vector 0 (/ 1 3)))
+        (b2 (make-vector 0 (/ 2 3))))
+    (make-picture (list (make-segment a1 m1)
+                        (make-segment m1 b1)
+                        (make-segment a2 m2)
+                        (make-segment m2 b2)))))
+
+\endlisp
+
+\begin{figure}
+\picture 5.29 in by 1.32 in (shapes)
+\caption{{\protect\footnotesize
+Sample pictures, specified using triangular coordinates.}}
+\label{sample-figures}
+\end{figure} 
+
+\pagebreak
+\subsection{Means of combination for pictures}
+
+We define a means of combination called {\tt split}, which takes as
+arguments two pictures and a {\tt ratio} between 0 and 1.  When given
+a triangle as argument, the {\tt split} picture first splits the
+triangle by dividing {\tt side1} of the triangle as specified by the
+{\tt ratio}.  Then it draws one picture in each subtriangle, as shown
+in figure~\ref{split}.
+
+
+\begin{figure}
+\picture 6.35 in by 3.5 in (split)
+\caption{{\protect\footnotesize
+The {\tt split} combination of two pictures.}}
+\label{split}
+\end{figure} 
+
+The procedure for {\tt split} must compute the new origin and sides for
+each of the two component triangles.
+
+\beginlisp
+(define (split pict1 pict2 ratio)
+  (lambda (triangle)
+    (let ((p (scale ratio (side1 triangle)))
+          (oa (origin triangle)))
+      (let ((ob (shift p oa zero-vector)))
+        (pict1 (make-triangle oa p (side2 triangle)))
+        (pict2 (make-triangle ob
+                              (shift (side1 triangle) oa ob)
+                              (shift (side2 triangle) oa ob)))))))
+\endlisp
+Observe how {\tt split} computes the two subtriangles, so that these can
+be handed to the appropriate {\tt pict1} and {\tt pict2}:
+
+We first compute the vector $p$, which represents the point on the
+side where the triangle is to be split.  (Note that $p$ will be given
+as a vector with respect to the origin of the triangle to be split.)
+The first subtriangle has origin $oa$ the same as the original
+triangle, {\tt side1} given by $p$, and {\tt side2} which is the same
+as the {\tt side2} of the original triangle.
+
+The second subtriangle has an origin $ob$ at the point designated by
+$p$, and the other two vertices at the same points as the original
+triangle.  However, according to our representation of triangles, we
+must express the triangle's origin in ``external'' coordinates (i.e.,
+as offsets from the screen point $(0,0)$), and express the other two
+vertices as offsets from the triangle's origin.
+
+This is where {\tt shift} comes in handy: With respect to the origin
+$oa$ of the original triangle, the origin of our second subtriangle is
+given by the vector $p$.  So to find the external coordinates for
+$ob$, we {\tt shift} $p$ from the origin $oa$ to an origin at the
+zero-vector.  Similarly, we can find the correct {\tt side1} and {\tt
+side2} for the second subtriangle by using the fact that these are the
+vectors running from $ob$ to the endpoints of the sides of the
+original triangle: With respect to the {\em old} origin $oa$, these
+are just the vectors {\tt side1} and {\tt side2}.  So to find the
+offsets from the {\tt new} origin $ob$, we {\tt shift side1} and {\tt
+side2} from $oa$ to $ob$.
+
+{\tt Split} illustrates a useful general method for specifying new
+triangles: First, find the vertices of the new triangle with respect
+to some fixed coordinate system (for example, expressed as offsets
+from the origin of the triangle that is being decomposed).  Next, use
+{\tt shift} to express the origin of the new triangle in external
+coordinates, by shifting from the origin of the coordinate system to
+the zero vector.  Finally, obtain the sides of the new triangle by
+shifting the other two vertices from the origin of the first
+coordinate system to the (shifted) origin of the new triangle.
+
+\section{3. To do in lab}
+
+Begin by loading the code for problem set 3, which contains the
+procedures described above.  You will not need to modify any of these.
+We suggest that you define your new procedures in a separate
+(initially empty) editor buffer, to make it easy to reload the system
+if things get fouled up.
+
+\subsection{Part 3.1}
+
+Draw some pictures to test the procedures.  Use {\tt split} to make
+various combinations of the pre-defined elementary pictures.  There is
+nothing to turn in for this part.
+
+\subsection{Part 3.2}
+
+For this part, you are to define a {\tt rotate} operator on pictures.
+The rotation of a picture draws the picture in the specified triangle,
+but ``rotated'' so that a different vertex of the triangle is taken as
+the origin.  See figure~\ref{rotate}.
+
+\begin{figure}
+\picture 6.26 in by 1.83 in (rotate)
+\caption{{\protect\footnotesize
+Rotating and superimposing pictures.}}
+\label{rotate}
+\end{figure} 
+
+Here is one way to go about defining {\tt rotate}: The origin of the
+new triangle is at the point specified by {\tt side1} of the original
+triangle (assuming we are rotating clockwise).  So we compute this new
+origin by shifting {\tt side1} from the old origin to the zero vector.
+(Compare the above explanation of {\tt shift}.)  The {\tt side1} of
+the new triangle ends where the {\tt side2} of the original triangle
+ended.  So we can compute the new {\tt side1} by shifting the vector
+{\tt side2} from the old origin to the new origin.  The {\tt side2} of
+the new triangle ends at the origin of the old triangle.  With respect
+to the old origin, this is the endpoint of the zero vector.  So we can
+find the new {\tt side2} by shifting the zero vector from the old
+origin to the new origin.  Note that in the case of an equilateral
+triangle, this operation simply reduces to rotating the picture about
+the center of the enclosing triangle.  If the triangle is not
+equilateral, then not only does the origin change, but the picture
+will be compressed or stretched, depending on the difference in the
+lengths of the sides of the triangle.
+
+Implement the {\tt rotate} operation by completing the following
+definition:
+
+\beginlisp
+(define (rotate pict)
+  (lambda (triangle)
+    (let ((new-origin (shift <??> <??> <??>)))
+      (pict (make-triangle <??>
+                           <??>
+                           <??>)))))
+\endlisp
+
+Test {\tt rotate} on some simple pictures.  Note that
+{\tt outline-picture} and {\tt midpoints} won't look any different when
+rotated, so you should use {\tt v-shape} or {\tt band} to test your
+procedure.
+
+Observe that, using {\tt rotate}, you can also rotate a picture in the
+opposite direction by applying {\tt rotate} twice, using {\tt
+repeated} (see textbook exercise 1.32).  (Compare the rotation
+operators in the square-limit language---a definition of {\tt
+repeated} has been included in the code for this problem set.)  Turn
+in listings of the {\tt rotate} procedure.
+
+
+\subsection{Part 3.3}
+
+Define an operator {\tt three-fold} which, given a picture, produces a
+new picture that is the superposition of three pictures---the original
+picture, the picture rotated once, and the picture rotated twice.
+(See figure~\ref{rotate}.) Test your procedure by defining {\tt 3v}
+and {\tt 3band} to be the three-fold superpositions, respectively, of
+{\tt v-shape} and {\tt band}.
+
+\subsection{Part 3.4}
+
+Figure~\ref{3split} illustrates a means of combination called {\tt
+3split}, which takes as its arguments three pictures and two numbers
+$r$ and $s$, such that $r+s \leq 1$.  It combines the pictures as
+shown in the figure.  (The orientation of the small triangles is
+unspecified---in implementing {\tt 3split} you can choose whichever
+orientations you wish.)
+
+For this part, you are to implement {\tt 3split} and turn in a listing
+of your procedure.
+
+This procedure can be rather tricky, especially if you are not used to
+expressing points in terms of vectors, so think about it carefully
+before you start coding.  A good way to proceed is to take the central
+point indicated in figure~\ref{3split} as $(r,s)$ to be the common
+origin of the three new triangles.  Note that this point can be
+computed by vector-adding together the {\tt origin} of the (original)
+triangle, the {\tt side1} scaled by $r$, and the {\tt side2} scaled by
+$s$.  You must now determine the two sides of each of the three small
+triangles relative to this origin.
+
+In writing your procedure, you can make good use of the {\tt shift}
+procedure, as in the implementations of {\tt split} and {\tt rotate}
+discussed above.  Also, a good way to test your procedure is to run it
+with all pictures as the {\tt outline-picture}, and to draw the
+result.
+
+After you get your working, investigate what happens if you use values
+of $r$ and $s$ with $r+s > 1$.
+
+\begin{figure}
+\picture 4.74 in by 1.54 in (3split)
+\caption{{\protect\footnotesize
+Using {\tt 3split} to combine 3 pictures.}}
+\label{3split}
+\end{figure} 
+
+\subsection{Part 3.5}
+
+Define a higher-order procedure {\tt make-splitter} that takes two
+numbers $r$ and $s$ as arguments, and returns a procedure that, when
+given a picture {\tt p} as argument, has the effect of doing a {\tt
+3split} with 3 copies of {\tt p} and the numbers $r$ and $s$.  
+
+For example, the following {\tt equal-split} procedure uses {\tt
+3split} to replicate a single picture 3 times, splitting the original
+triangle at the point where the medians intersect, namely, the point
+whose triangular coordinates are (1/3, 1/3):
+
+\beginlisp
+(define (equal-split pict)
+  (3split pict pict pict (/ 1 3) (/ 1 3)))
+\endlisp
+
+Writing
+
+\beginlisp
+(define equal-split (make-splitter (/ 1 3) (/ 1 3)))
+\endlisp
+
+should be an equivalent way to define {\tt equal-split}.
+
+Turn in a listing of {\tt make-splitter} together with a few sentences
+describing how you tested your definition.  (E.g., what test cases
+did you try, and how did you tell if you got the right result.)
+
+\subsection{Part 3.6}
+
+Suppose we use {\tt 3split} recursively: split a picture which is itself
+a split, and so on.  Here is an extended version of the
+{\tt equal-split} procedure given above, which performs this splitting
+to a specified number of levels:
+\beginlisp
+(define (rec-equal-split pict levels)
+  (if (= levels 0)
+      pict
+      (let ((p (rec-equal-split pict (-1+ levels))))
+        (3split p p p (/ 1 3) (/ 1 3)))))
+\endlisp
+
+Now suppose we want to generalize this procedure as in part 3.5, that
+is to have a higher-order procedure that will create things like {\tt
+rec-equal-split}, except where the splitting ratios of the sides can
+be other than one-third.  We want a procedure {\tt make-rec-splitter},
+such that {\tt rec-equal-split} could be defined as
+\beginlisp
+(define rec-equal-split (make-rec-splitter (/ 1 3) (/ 1 3)))
+\endlisp
+
+Test your procedure by drawing some figures, and turn in a listing.
+
+\subsection{Part 3.7}
+
+The procedures of the previous parts were based on the {\it splitting}
+idea of subdividing a triangle into three triangles with a common
+vertex.  Figure~\ref{embed} shows another decomposition scheme where
+we subdivide the triangle into four triangles by connecting points on
+the sides.  This leads to a means of combination for four pictures,
+parameterized by numbers three parameters $q, r, s$, each between 0
+and 1, that specify the ratios along the edges at which to place the
+connection points.
+
+Carry through the analogues of parts 3.4, 3.5, and 3.6 for this new
+means of combination.  Namely, define the means of combination itself
+(as in 3.4); define a higher-order procedure that abstracts the idea
+of using the means of combination with all four pictures the same, and
+with specified values for $q, r, s$ (as in 3.5); and implement a
+method for applying the means of combination recursively (as in 3.6).
+Turn in listings of your procedures together with examples of what
+they draw.
+
+
+\begin{figure}
+\picture 2.03 in by 1.67 in (embed)
+\caption{{\protect\footnotesize
+A scheme for combining four pictures.}}
+\label{embed}
+\end{figure} 
+
+\subsection{Part 3.8}
+
+The procedures you have implemented give you a wide choice of things
+to experiment with.  (Suggestion: consider what happens if you use
+primitive pieces that extend outside of the unit triangle.)  There is
+nothing to turn in for this part of the assignment, but we hope you
+will spend some time experimenting.  Please hand in any pictures that
+you find particularly pretty or striking.
+
+{\bf Contest:} Prizes will be awarded for the best designs.
+Limit: three entries
+per person. 
+
+\subsection{Part 3.9}
+
+Suppose we decide to change the representation of vectors so that
+{\tt make-vector} is now defined as
+
+\beginlisp
+(define make-vector list)
+\endlisp
+
+What are {\it all} the other changes in the triangle system that
+must be made as a consequence of this change, so that the system
+will continue to work as before?
+
+
+
+\end{document}

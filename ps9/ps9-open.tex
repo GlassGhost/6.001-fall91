@@ -1,0 +1,653 @@
+\input ../6001mac				% On ALTDORF.AI.MIT.EDU
+
+\def\bigfbox#1{%
+  \vtop{\vbox{\hrule%
+              \hbox{\vrule\kern3pt%
+                    \vtop{\vbox{\kern3pt#1}\kern3pt}%
+                    \kern3pt\vrule}}%
+        \hrule}}
+
+\begin{document}
+
+\psetheader{Fall Semester, 1991}{Problem Set~9}
+
+\medskip
+
+\begin{flushleft}
+Issued: November 14, 1991 \\
+\smallskip
+Tutorial preparation for: Weeks of November~18 and November~25 \\
+Written assignment due: \fbox{Wednesday} November~27, 1991, in recitation \\
+\end{flushleft}
+
+\begin{flushleft}
+Reading:
+\begin{tightlist}
+
+\item Chapter~5.
+
+\end{tightlist}
+\end{flushleft}
+
+\paragraph{QUIZ ANNOUNCEMENT} Quiz~2 is on Wednesday, November~20, in Walker
+Memorial Gymnasium (54--340) from 5--7 PM or 7--9 PM.  You may take the quiz
+during either one of these two periods, but students taking the quiz during the
+first period will not be permitted to leave the room until the end of the
+period and students taking the quiz during the second period will not be
+admitted late without a very good explanation.  The quiz is {\em closed book},
+but you may bring with you one $8\frac{1}{2}\times 11$ inch sheet of paper on
+which you have written notes.  You will not need your ``Don't Panic'' manual
+for this quiz.  The quiz will cover all material from the beginning of the
+semester through problem set~8 and all material presented in class through
+recitation on November~8.  In addition, a quiz handout, with further details
+about the quiz, has been distributed in lecture.  Bring it with you to the
+quiz.  Questions will be strongly based on the problems that were assigned for
+written homework and for tutorial.  The best way to study for the quiz is to
+review the written homework and tutorial assignments and to familiarize
+yourself with the quiz handout.  Because of the quiz, there will be no problem
+set distributed next week.
+
+This problem set covers the three major programs discussed in chapter~5: the
+register-machine simulator, the explicit control evaluator, and
+the compiler.  This is a great deal of code.  One important skill that
+we hope you are beginning to master by now is the ability to modify a
+large program (like the compiler) by identifying the relevant parts,
+rather than attempting to master every detail of the entire program.
+This $\$$kill is very highly valued in ``the real world''.
+
+\bigskip
+
+\bigfbox{\hbox{\vbox{\bf The lectures on this material will cover these
+programs in the same order as the problem set, so you will have no trouble
+starting the problem set early.  We {\bf STRONGLY RECOMMEND} that you begin
+work on parts of the problem set as soon as we have covered material relevant
+to that portion.  Note you need to do a small amount of lab work to prepare for
+tutorial the week of November~25.  (See the beginning of part~3.) Also, bear in
+mind that the hardest part of this problem set is in part~6, in which you will
+extend the compiler.}}}
+
+\newpage
+
+The {\cf load-problem-set} command for problem set~9 will load the
+following files into {\sc Scheme}.
+
+{\cf PS9-SYNTAX.SCM }
+These are {\sc Scheme} procedures that define the representation of
+expressions and environments.  This is essentially the same syntax as
+was used in the meta-circular evaluator, with a few additions required
+by the explicit-control version.
+
+{\cf PS9-REGSIM.SCM}
+This is the register machine simulator discussed in section~5.1.5.  It
+has been modified to include a monitored stack, as suggested in the
+subsection ``Monitoring machine performance'' (p.~417), and to
+complain about various errors in machine descriptions, as suggested in
+exercise~5.9. In addition we added a simple tracing facility, a
+counter for the number of machine operations executed, and a dynamic
+display of the stack depth using Chipmunk graphics.  You needn't do
+more than use the simulator as a ``black box,'' but we've included a
+hardcopy printout of the code with this problem set in case you want
+to play with it.
+
+{\cf PS9-ECEVAL.SCM }
+This is the explicit-control evaluator described in section~5.2 of the
+book. All of the code has been collected here in the form of a
+definition to be processed by the register machine simulator when the
+file is loaded, so do not be surprised if the loading takes quite a
+while. This version of the evaluator also has hooks in it to handle
+code produced by the compiler, as described in section~5.3.6 of the
+textbook.  The only other change from the code listed in section~5.2
+is to define two additional registers, {\cf arg1} and {\cf arg2},
+which you will use in part~6 of this problem set.
+
+{\cf PS9-COMP.SCM }
+This is the compiler, discussed in section~5.3.
+
+{\cf PS9-OPEN.SCM } This will be loaded into {\sc Scheme} and
+placed in a buffer, but you will not need it until you are ready to
+modify the compiler in part~6 of this assignment.  You should study this code
+carefully.  A listing is attached to this problem set.
+
+\section{Part 1:  \fbox{Tutorial Preparation for the week of November~18}}
+
+Register machines provide a means of handcrafting code specific to a
+particular program.  In principle, this should lead to extremely
+efficient code, since one can avoid the overhead that comes from the
+need to handle general computations.
+
+\problem{Tutorial Problem 1.1}  In tutorial, you should demonstrate that you
+can implement three register machines.  Each machine should start with
+its argument in register {\cf lst} and stop with the answer in
+register {\cf val}.
+
+The first machine implements an iterative procedure that counts the
+number of elements in a list, according to the following method:
+
+\beginlisp
+(define (count-elements-iter lst)
+  (define (loop lst val)
+    (cond ((null? lst) val)
+          (else (loop (cdr lst) (+ val 1)))))
+  (loop lst 0))
+\endlisp
+
+The second machine implements a recursive algorithm that counts the
+elements in a list:
+
+\beginlisp
+(define (count-elements-rec lst)
+  (cond ((null? lst) 0)
+        (else (+ 1 (count-elements-rec (cdr lst))))))
+\endlisp
+
+The third machine implements the recursive {\cf countatoms} procedure
+(p.~98 of the text):
+
+\beginlisp
+(define (countatoms lst)
+  (cond ((null? lst) 0)
+        ((atom? lst) 1)
+        (else (+ (countatoms (car lst))
+                 (countatoms (cdr lst))))))
+\endlisp
+
+How do the running time and space of these machines grow as the size of
+the input list increases? (What are various ways you might measure the
+``size'' of the input list for {\cf countatoms}?)
+
+Remember to sketch the data paths for each machine: giving just the controller
+listing for a machine is only half the task.
+
+As explained in the textbook, register machines are built with {\cf
+define-machine} and can be run by typing {\cf (start <machine-name>)}.
+See pages~394--405 for some example machine definitions, taking note
+of the syntax for {\cf define-machine}.
+
+When implementing register machines, you should observe the following
+caveats:
+
+\begin{itemize}
+\item Every instruction is one of the following types:
+{\cf assign}, {\cf branch}, {\cf goto}, {\cf save}, {\cf restore}.
+(You should not need to use {\cf perform}.)
+
+\item The only values that can be assigned to registers or tested in
+branches are constants, fetches from registers, or primitive
+operations applied to fetches from registers. No nested operations are
+permitted, for example {\cf (assign val (null? (car (fetch arg1))))} is
+not permitted since a call to {\cf car} was nested inside a call to {\cf
+null?}.  The list of available
+primitive operations is: {\cf car cdr cons eq? atom?  null? + - * / < > =}.
+
+\end{itemize}
+
+\section{Part 2:  Running register machines in the lab}
+
+In lab, use the register machine simulator to test each of the three
+machines you designed for tutorial. Record the statistics on the growth
+in time (which we'll consider to be the number of machine operations
+required) and space (which we'll consider to be the maximum stack depth)
+required to run each machine.  In later parts of this problem set,
+we'll ask you to compare these statistics with similar results for the
+explicit-control evaluator and the compiler.
+
+To use the simulator, load the code for problem set~9, then type in
+your machine definition, for example,
+
+\beginlisp
+(define-machine count-elements-iter
+  (registers \ldots)
+  (controller
+     \vdots ))
+\endlisp
+
+You'll find it convenient to define test procedures that load an input
+into a machine, run the machine, print some statistics, and return the
+result computed by the machine.  For example:
+
+\beginlisp
+(define (test-count-elements-iter input)
+  (remote-assign count-elements-iter 'lst input)
+  (start count-elements-iter)
+  (initialize-stack count-elements-iter)
+  (initialize-ops-counter count-elements-iter)
+  (remote-fetch count-elements-iter 'val)
+  )
+\endlisp
+
+{\cf Initialize-stack} and {\cf initialize-ops-counter} print
+statistics and reset some of machine's local state variables used in
+statistics gathering.
+
+In addition to routines that gather statistics for stack usage and
+total number of operations, there are some procedures to help you
+debug your machines.  {\cf Remote-trace-reg-on} will show all
+assignments to a specified machine register as they occur.  For
+example, evaluating:
+
+\beginlisp
+(remote-trace-reg-on count-elements-iter 'lst)
+\endlisp
+
+before running your test procedure will show you all the changes to the
+{\cf lst} register. To see even more stuff, try:
+
+\beginlisp
+(remote-trace-on count-elements-iter)
+\endlisp
+
+which will print each machine instruction as it is executed.  To get rid
+of these traces, use {\cf remote-trace-reg-off} and {\cf
+remote-trace-off}.
+
+\problem{Problem 2.1}  Debug your two {\cf count-elements} machines and
+record some statistics on the total number of machine operations and the maximum
+stack depth required to compute the length of a list.  For each machine, derive
+formulas for the number of operations, total stack pushes, and maximum
+stack depth as a function of $n$, where $n$ is the length of the list
+argument.
+
+\problem{Problem 2.2} Debug your {\cf countatoms} machine.  Record
+statistics on the performance of your machine when the inputs are
+balanced binary trees.  These inputs can be generated by the procedure:
+
+\beginlisp
+(define (balanced-binary-tree depth)
+  (if (= depth 1)
+      (cons 'a 'a)
+      (let ((branch (balanced-binary-tree (- depth 1))))
+        (cons branch branch))))
+\endlisp
+
+Specifically, you should define this in {\sc Scheme} then use the
+{\cf (remote-assign <machine> <register-name> (balanced-binary-tree <depth>))}
+command to setup your inputs for the {\cf countatoms} machines.
+
+What is the order of growth in time and space required:
+
+(a) As a function of the depth of the tree?
+
+(b) As a function of the total number of atoms in the tree?
+
+(Optional: Derive explicit formulas for the number of operations, total stack
+pushes, and maximum stack depth as a function the depth of the tree.)
+
+\section{Part 3:  Running the explicit-control evaluator}
+
+The explicit control evaluator is implemented as a register machine.
+Thus, when you run it, you are running a {\sc Scheme} embedded in the
+simulator embedded in {\sc Scheme}! (It will be slow.)
+
+To start the machine, type {\cf (go)}. If you are using a Chipmunk,
+then on the bottom of the screen you will see a graphical
+representation of the depth of the stack. Note that the graph wraps
+around back to the left side of the screen for long runs.  At the end of a run,
+the system will print a few statistics. For example:
+
+\beginlisp
+==> (go)
+(TOTAL-PUSHES = 0 MAXIMUM-DEPTH = 0)
+(MACHINE-OPS = 8)
+\null
+EC-EVAL==> (define (f x) (+ x (* x x)))
+F
+(TOTAL-PUSHES = 3 MAXIMUM-DEPTH = 3)
+(MACHINE-OPS = 37)
+\null
+EC-EVAL==> (f 10)
+110
+(TOTAL-PUSHES = 21 MAXIMUM-DEPTH = 8)
+(MACHINE-OPS = 181)
+\null
+EC-EVAL==> quit
+DONE
+\endlisp
+
+Notice that the explicit control evaluator has the prompt {\cf
+EC-EVAL==>} to show you that you are not talking to the ordinary
+{\sc Scheme} system. Try playing around with a few expressions. Use the
+``alpha'' and ``graphics'' to help see the graph of the stack depth.
+If the graph gets too cluttered, you can clear the screen with the
+{\cf clear-graphics} procedure which has been installed as a primitive
+operation. The other primitives are:
+
+\beginlisp
+    car cdr cons atom? eq? null? + - * / > < =
+\endlisp
+
+but it is easy to add more. See the procedure {\cf setup-environment}
+in the {\cf ECEVAL} file.
+
+There is no error handler for the evaluator, so the slightest mistake
+will bounce you back out to {\sc Scheme}. To get back to the evaluator, just
+hit a {\cf <cntl>G} and type {\cf (go)} again. Your old definitions
+will still be defined.
+
+You can turn on instruction tracing by doing
+
+\beginlisp
+(remote-trace-on explicit-control-evaluator)
+\endlisp
+
+Even with a very simple expression, this will generate an enormous
+printout.  You can also set {\cf remote-trace-reg-on} for the {\cf
+exp} register, or one of the other registers.
+
+\medskip
+
+\bigfbox{\hbox{\vbox{\problem{TO DO BEFORE TUTORIAL THE WEEK OF NOVEMBER~25} Turn on
+remote trace for the explicit-control evaluator, then start the evaluator.
+Define the following very simple function, and then give a very simple call to
+the function.  Make a printout of the sequence of machine operations and bring
+it with you to tutorial the week of November~25. See Part~4 below too.}}}
+
+Here is the function and call that we would like you to use:
+
+\beginlisp
+EC-EVAL==> (define (f x) (+ x 2))
+EC-EVAL==> (f 3)
+\endlisp
+
+Notice that in the midst of this tracing, you will be prompted for some input.
+Because of all the verbiage generated by the tracing, you can easily get
+confused here. To help avoid this confusion, consider the following partial
+transcript of what you will see:
+
+\beginlisp
+==> (remote-trace-on explicit-control-evaluator)
+()
+\null
+==> (go)
+(PERFORM (INITIALIZE-STACK))
+(TOTAL-PUSHES = 0 MAXIMUM-DEPTH = 0)
+(PERFORM (INITIALIZE-OPS-COUNTER))
+(MACHINE-OPS = 8)
+(PERFORM (NEWLINE))
+\null
+(PERFORM (NEWLINE))
+\null
+(PERFORM (PRINC "EC-EVAL==> "))EC-EVAL==>                ;; Prompted here
+(ASSIGN EXP (READ-FROM-KEYBOARD))(define (f x) (+ x 2))  ;; Waited for input here
+(BRANCH (EXIT-ON? (FETCH EXP)) EC-EVAL-EXIT)
+(ASSIGN ENV THE-GLOBAL-ENVIRONMENT)
+(ASSIGN CONTINUE PRINT-RESULT)
+(GOTO EVAL-DISPATCH)
+     \vdots
+\endlisp
+
+\medskip
+
+\bigfbox{\hbox{\vbox{Be sure to turn off tracing before continuing with this
+part of the problem set.}}}
+
+\medskip
+
+\problem{Problem 3.1} Start the explicit-control evaluator and,
+typing at the evaluator, define the procedures {\cf
+count-elements-iter,} {\cf count-elements-rec,} and {\cf countatoms}
+listed in part~1.  Record statistics like the ones you did in part~2, to
+determine the growth in time and space for these procedures.
+Determine explicit formulas for the number of stack pushes, maximum
+stack depth, and total machine instructions required to count the
+elements in a list of length $n$ using the two {\cf count-elements}
+procedures.
+
+\problem{Problem 3.2} Record some statistics on the work required by
+{\cf countatoms} with a few simple inputs, and compare this with the
+work required by your {\cf countatoms} register machine from part~2.
+(Optional: Derive formulas for the work required by {\cf countatoms}
+on balanced binary trees, as in problem~2.2.  Be careful not to
+include the work required to generate the tree---just the work to
+count the atoms.)
+
+
+\section{Part 4:  \fbox{Tutorial Preparation for the week of November~25}}
+
+\problem{Problem 4.1} Take the list of operations you generated
+(see beginning of part~3 above) and explain which operations would be
+omitted if these expressions were compiled rather than interpreted.
+
+\problem{Problem 4.2} The following is the output of the compiler
+for a simple function definition.  Give the {\sc Scheme} source expression
+that was compiled to produce this output:
+
+\beginlisp
+((assign val (make-compiled-procedure entry4 (fetch env)))
+ (goto after-lambda3)
+\null
+ entry4
+ (assign env (compiled-procedure-env (fetch fun)))
+ (assign env (extend-binding-environment '(x) (fetch argl) (fetch env)))
+ (save env)
+ (assign fun (lookup-variable-value '= (fetch env)))
+ (assign val (lookup-variable-value 'x (fetch env)))
+ (assign argl (cons (fetch val) '()))
+ (assign val '0)
+ (assign argl (cons (fetch val) (fetch argl)))
+ (assign continue after-call6)
+ (save continue)
+ (goto apply-dispatch)
+\endlisp
+% Allow page break
+\beginlisp
+\null
+ after-call6
+ (restore env)
+ (branch (true? (fetch val)) true-branch5)
+ (assign fun (lookup-variable-value '+ (fetch env)))
+ (save fun)
+ (assign val (lookup-variable-value 'x (fetch env)))
+ (assign argl (cons (fetch val) '()))
+ (save argl)
+ (assign fun (lookup-variable-value 'foo (fetch env)))
+ (save fun)
+ (assign fun (lookup-variable-value '- (fetch env)))
+ (assign val (lookup-variable-value 'x (fetch env)))
+ (assign argl (cons (fetch val) '()))
+ (assign val '1)
+ (assign argl (cons (fetch val) (fetch argl)))
+ (assign continue after-call8)
+ (save continue)
+ (goto apply-dispatch)
+\endlisp
+% Allow page break
+\beginlisp
+\null
+ after-call8
+ (assign argl (cons (fetch val) '()))
+ (restore fun)
+ (assign continue after-call7)
+ (save continue)
+ (goto apply-dispatch)
+\null
+ after-call7
+ (restore argl)
+ (assign argl (cons (fetch val) (fetch argl)))
+ (restore fun)
+ (goto apply-dispatch)
+\null
+ true-branch5
+ (assign val '-1)
+ (restore continue)
+ (goto (fetch continue))
+\null
+ after-lambda3
+ (perform (define-variable! 'foo (fetch val) (fetch env)))
+ (assign val 'foo)
+ (restore continue)
+ (goto (fetch continue)))
+\endlisp
+
+\section{Part 5: Using the compiler}
+
+The compiler translates {\sc Scheme} expressions into register-machine code
+that can be run as part of the explicit-control evaluator machine
+(check out the book!). You can look at the output of the compiler by
+using the {\sc Scheme} {\cf compile} procedure. For example:
+
+\beginlisp
+==> (pp (compile '(* x y)))
+((ASSIGN FUN (LOOKUP-VARIABLE-VALUE '* (FETCH ENV)))
+ (ASSIGN VAL (LOOKUP-VARIABLE-VALUE 'X (FETCH ENV)))
+ (ASSIGN ARGL (CONS (FETCH VAL) '()))
+ (ASSIGN VAL (LOOKUP-VARIABLE-VALUE 'Y (FETCH ENV)))
+ (ASSIGN ARGL (CONS (FETCH VAL) (FETCH ARGL)))
+ (GOTO APPLY-DISPATCH))
+\endlisp
+
+To actually run the code, use the procedure {\cf compile-and-go} which
+compiles an expression and runs the result via the explicit-control
+evaluator:
+
+\beginlisp
+==> (compile-and-go '(* 5 (+ 4 6)))
+(TOTAL-PUSHES = 0 MAXIMUM-DEPTH = 0)
+50
+(TOTAL-PUSHES = 4 MAXIMUM-DEPTH = 4)
+(MACHINE-OPS = 40)
+\null
+EC-EVAL==> punt
+DONE
+\endlisp
+
+You can compile definitions with {\cf compile-and-go} which will run
+the {\cf define} and make the compiled procedure available from the
+evaluator. (Since {\cf compile} and {\cf compile-and-go} are
+top-level to {\sc Scheme}, you can {\cf zap} explicit calls to them from
+the editor instead of typing them by hand.).
+
+\beginlisp
+==> (compile-and-go '(define (f x) (+ x 5)))
+(TOTAL-PUSHES = 0 MAXIMUM-DEPTH = 0)
+F
+(TOTAL-PUSHES = 1 MAXIMUM-DEPTH = 1)
+(MACHINE-OPS = 21)
+\null
+EC-EVAL==> (f 10)
+15
+(TOTAL-PUSHES = 5 MAXIMUM-DEPTH = 3)
+(MACHINE-OPS = 68)
+\null
+EC-EVAL==> fini
+DONE
+\endlisp
+
+\problem{Problem 5.1} Compile your three {\cf count} procedures and
+do an analysis similar to the ones you did in parts~2 and~3 to find
+the number of machine operations and the amount of space required.
+Use a simple fragment from any of the procedures to illustrate why the
+compiled code runs faster and takes less space than the interpreted
+code.  Does compiling the code ever change the {\em order of growth}
+of the time or space required?
+
+\problem{Problem 5.2} For each of the two {\cf count-elements}
+procedures, (and optionally for {\cf countatoms}) prepare a table like
+the following, drawing on the statistics you took in parts~2 and~3:
+
+\beginlisp
+                            COUNT-ELEMENTS-ITER on a list of length n
+\null
+                  number of ops      number stack pushes      max stack depth
+--------------------------------------------------------------------------------
+HAND-CODED     |                |                         |
+---------------|----------------|-------------------------|---------------------
+INTERPRETED    |                |                         |
+---------------|----------------|-------------------------|---------------------
+COMPILED       |                |                         |
+--------------------------------------------------------------------------------
+                       limit as n becomes large, of the ratio
+--------------------------------------------------------------------------------
+INTERPRETED/   |                |                         |
+HAND-CODED     |                |                         |
+---------------|----------------|-------------------------|---------------------
+COMPILED/      |                |                         |
+INTERPRETED    |                |                         |
+---------------|----------------|-------------------------|---------------------
+COMPILED/      |                |                         |
+HAND-CODED     |                |                         |
+--------------------------------------------------------------------------------
+\endlisp
+
+Briefly (in a short paragraph or two) summarize what insights you have gleaned
+from these statistics.  This is probably one of the most important things you
+will learn in this course from the point of few of a computer programmer.  Give
+it some careful consideration.
+
+\newpage
+
+\section{Part 6: Open-coded primitive operations}
+
+As you've seen in part~5, the book's compiler produces a big
+improvement over interpreted code, but it has a long way to go to
+match the performance of hand-coded programs.
+
+The compiler worries mostly about avoiding unnecessary stack
+operations.  There are lots of other ways in which compilers can
+improve performance.  One of these is in making variable lookup more
+efficient.\footnote{Note that the performance difference between
+compiled and handcrafted code is actually worse than is shown by the
+stack and operation counts. This is because {\cf lookup-variable-value}, which
+in a real register machine would require many instructions, is counted
+in our model as a single operation.} You can read about this in section~5.3.7
+of the text.
+
+In this part of the problem set, you'll consider another important
+optimization---{\em open-coded primitives}.  This idea is described in
+exercise~5.33 (p.~479).  You should read that exercise, although the
+detailed implementation of open coding we shall use is different from
+the one described in that exercise.
+
+The file {\cf ps9-open} is placed into an editor buffer and
+loaded into {\sc Scheme} when you do Load Problem Set~9
+(and a listing has been included with this problem set).
+Comments in the file describe the open coding method, and the file contains the
+complete implementation for open coding calls to primitives with one
+argument.  You will need to define the procedure {\cf
+open-code-binary-primitive-application} to handle primitives with two
+arguments.  A template for its definition has placed in your {\cf
+ps9-answer} buffer. In this open-coding implementation, we'll worry
+only about primitive applications where there are either one or two operands.
+
+The explicit-control evaluator machine that was loaded with this
+problem set includes two additional registers not found in the
+definition in the book.  These are called {\cf arg1} and {\cf arg2}
+and you will use them in compiling open-coded primitives, as described
+in {\cf ps9-open}.
+
+The open-coding implementation includes a flag called {\cf
+open-code?}, initially set to {\cf false}, that controls whether or
+not to use open coding.  After you get your code running, you can turn
+this on and off (using {\cf (open-code!)} and {\cf (close-code!)}) to compare the
+results of open coding and
+closed coding. (``Closed-coded'' means that the call is not open coded.)
+
+\problem{Problem 6.1} Complete the definition of 
+{\cf open-code-binary-primitive-application} in your {\cf ps9-answer} buffer.
+Now zap your definition into {\sc Scheme}. Please think carefully about
+your implementation.  Compilers are one area where it is {\em much} easier
+to reason things out carefully beforehand.  You really don't want to
+slog through buggy compiler output in an attempt to figure out what you
+did wrong.  Test your open-coding method by setting {\cf open-code?}
+to true then trying {\cf (compile-and-go '(+ (* 3 4) (* 5 6)))}.
+
+\problem{Problem 6.2} Evaluate {\cf (compile '(+ (* 3 4) (* 5 6)))}
+both with and without open coding, and compare the results to
+convince yourself that your open coding works as desired.  Turn in
+listings of both results, marked to indicate where the differences are
+in the generated code.
+
+\problem{Problem 6.3} Compile {\cf count-elements-rec} both with and without
+open coding, and compare the number of operations required for some simple
+inputs.  Extend the table you made in problem~5.2 for {\cf count-elements-rec}
+to compare the results of open coding with ordinary compilation.
+
+\problem{Problem 6.4} Compile {\cf countatoms} with and without open
+coding, and compare the behavior for a few simple inputs.
+
+\problem{Warning/Hint} If your open coding produced the right answer
+for the arithmetic expression in problem~6.1, but the wrong answer in~6.2
+or~6.3, then you probably did not correctly preserve the required registers.
+
+\end{document}
+
+

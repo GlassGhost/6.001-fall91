@@ -1,0 +1,968 @@
+\input ../6001mac                               % On ALTDORF.AI.MIT.EDU
+
+%
+% To Do: ziggy--- place --> birthplace for consistency with Hal's code patch
+%
+
+\begin{document}
+
+\psetheader{Fall Semester, 1991}{Problem Set 6 Solutions}
+
+\medskip
+
+\section{Part 1: Implementation of the Adventure Game}
+
+There is nothing to hand in for this part.
+
+\section{Part 2: Tutorial Problems}
+
+No written solutions are distributed for tutorial problems. 
+
+\section{Part 3: Homework Exercises}
+
+\paragraph{Problem 1}
+
+(a) The following method clause could be added to {\cf
+make-mobile-object} to make {\cf change-place} be an internal method
+rather than an external procedure.
+
+\beginlisp
+((eq? message 'change-place)          
+ (lambda (self new-place)             
+   (let ((old-place place))           
+     (set! place new-place)           
+     (ask old-place 'del-thing self)) 
+   (ask new-place 'add-thing self)    
+   'place-changed))                   
+\endlisp
+
+(b) It is often best to use a method when the action in question only
+requires access to the internal state of the object in question.  If
+you write a procedure instead of a
+method in such a case, you will need to make lots of calls to {\cf ask}
+to find out information a method would have access to as local
+internal state.  On the other hand, if the action is something that
+will need access to the state of many objects, and perhaps may be done
+to or by a wide variety of classes, you may want to use a
+procedure.  This would avoid the need of including another method
+inside all the creation procedures for these classes.  This is an
+especially big win if the classes the procedure works on don't all
+inherit from one root class.  If they do, as in our case with {\cf
+mobile-object}, you can include the action as a method in the common
+ancestor, as we did with {\cf install}.
+
+For {\cf change-place}, we need to access the state of the current
+place, the new place, and the {\cf mobile-object}'s place binding.
+Given that these are in several different objects, using an external
+procedure seems reasonable.
+
+\paragraph{Problem 2}
+
+Alyssa is definitely right: the new code introduces a subtle bug and {\cf
+Hal} can appear, at least, to be in two places at once.
+
+Let's look closely at the suggested scenario. Imagine we make the change that
+Louis has suggested. Now observe:
+
+\beginlisp
+==> (define hal (make\&install-person 'hal hal-office 2))
+HAL
+\null
+==> (ask hal 'go 'up)
+HAL is not at HAL-OFFICE
+HAL moves from HAL-OFFICE to ERIC-OFFICE
+\#T
+\endlisp
+
+Notice how Hal denied he was initially in his office, even though that is where
+we thought we installed him. Even more curious, consider now:
+
+\beginlisp
+==> (ask hal 'say '("Here I am!"))
+At ERIC-OFFICE : HAL says -- Here I am!
+SAID
+\null
+==> (mapcar (lambda (x) (ask x 'name))
+            (ask hal-office 'things))
+(HAL)  ; Hal is still in Hal's office?!?!
+\null
+==> (mapcar (lambda (x) (ask x 'name))
+            (ask eric-office 'things))
+(HAL)  ; Hal is also in Eric's office?!?!
+\null
+==> (equal? (ask  hal-office 'things)
+            (ask eric-office 'things))
+()     ; Hmm... they're not the same Hal?
+\endlisp
+
+Apparently, there is some sort of Hal impersonator left in Hal's office even
+after we told Hal to move up to Eric's office. What gives?
+
+Let's look at the problem step by step. Thinking carefully about the definition
+of {\cf make\&install-person} reveals that evaluating:
+
+\beginlisp
+==> (define hal (make\&install-person 'hal hal-office 2))
+\endlisp
+
+has the same effect as evaluating the sequence of two expressions:
+
+\beginlisp
+==> (define hal (make-person 'hal hal-office 2))
+==> (ask hal 'install)
+\endlisp
+
+First, then, consider the environment diagram of Figure~\ref{fig:hal-world}
+depicts the state
+of the world just after we evaluate the first expression of this sequence.
+
+\begin{figure}[htb]
+{\footnotesize
+\begin{verbatim}
+.------------------------------------------------------------------------------.
+| Global Env |                                                                 |
+|------------'                                                                 |
+| HAL: --.                                                                     |
+`--------|---------------------------------------------------------------------'
+       ^ |                  .----------.      ^                     ^
+.------|-'              .-> (HAL-OFFICE) <----|-------------.       |
+| .-------------.       |   `----------'  .---------.       |  .--------.
+| | NAME:  -----+-> HAL |                 | NAME: --+-> HAL |  | NAME: -+-> HAL
+| | PLACE: -----+-------'                 | PLACE: -+-------'  `--------'
+| | THRESHOLD: -+-> 2                     `---------'               ^
+| `-------------'                             ^                     |
+|      ^                                      |            .--> (.)(.)
+|      |                               .--------------.   /      |
+| .----------------.                   | NAMED-OBJ: --+--'       V
+| | POSSESSIONS: --+-> [/]             `--------------'    (lambda (message)
+| | RESTLESSNESS: -+-> 0                      ^             ...NAMED-OBJECT methods...)
+| | MOBILE-OBJ: ---+---------.                |
+| `----------------'         `----------> (.)(.)
+|      ^                                   |
+|      |                                   `-> (lambda (message)
+`-> (.)(.)                                      ...MOBILE-OBJECT methods...)
+     |
+     `-> (lambda (message)
+          ...PERSON method dispatch...)
+\end{verbatim}
+}
+\caption{The World According to Hal}\label{fig:hal-world}
+\end{figure}
+
+Notice that there are three distinct entities which claim to be named Hal: 1)
+The global Hal, 2) global Hal's internal {\cf mobile-obj}, and 3) the internal
+{\cf mobile-obj}'s internal {\cf named-obj}. Hereafter we will refer to these
+three entities as {\cf global}, {\cf mobile}, and {\cf nobel}, respectively.
+(Relax, we will not actually have occasion to mention {\cf nobel}\ldots the
+symmetry of names was just too cute to resist.)
+
+Now consider what happens when we do {\cf (ask hal 'install)}.  This
+seeks out global Hal's person method for {\cf install} then invokes it
+on global Hal himself.  This adds {\cf global} to the clock list so
+that {\cf global} will have free will.  So far, so good.
+
+The next thing that happens, using Louis' proposed change, is: {\cf (ask
+mobile-obj 'install)}.  Again, {\cf ask} finds the appropriate method (in this
+case, {\cf mobile}'s {\cf install} method) and invokes that on {\cf mobile}.
+This is the crucial issue: notice that without Louis' change, {\cf mobile}'s
+{\cf install} method would instead have been invoked on {\cf global}, not on
+{\cf mobile}.
+
+So how does this lose?  Observe that the {\cf mobile} {\cf install} method
+takes the argument on which it is invoked and makes the {\cf place} in which
+{\cf mobile} was created add that argument to the collection of {\cf things}
+that the {\cf place} knows about.  Thus, if invoked on {\cf mobile} rather than
+on {\cf global}, the place where {\cf global} and {\cf mobile} were created
+will know that {\cf mobile} is there but it will not know that {\cf global} is
+there.
+
+This is why when {\cf global} Hal is asked to move to some new place, that
+place denies that Hal was ever there.  Specifically, whenever a person moves,
+the {\cf person} {\cf move-to} method is ultimately invoked, which in turn
+invokes the {\cf change-place} procedure on the person and the destination
+place.  Looking at {\cf change-place}, we see that {\cf old-place} will be
+bound to the place where {\cf global} currently is.  (This may be a little
+confusing since we said that {\cf change-place} will be invoked on {\cf global}
+but the name of the parameter to which {\cf global} will be bound is called
+{\cf mobile-object} but {\cf global} is a {\cf person}.  Of course, a {\cf
+person} is a subclass of {\cf mobile-object} so this is not really a bug.  We
+just have to keep in mind the flexibility that inheritance affords us: people
+are mobile objects too.)
+
+Proceeding with the body of {\cf change-place}, we change {\cf global}'s place
+to the new place then finally ask the {\cf
+old-place} to delete {\cf global} from its list of known things.  This is where
+the old place complains that {\cf global} is not there.  The details are in the
+{\cf del-thing} method of {\cf place}s, where the place complains if no thing
+{\cf eq?} to the deletion subject is present there (noting that {\cf memq} uses
+{\cf eq?} to find any matching thing).  From our environment diagram, it is
+clear that {\cf global} and {\cf mobile} are not {\cf eq?} (or even {\cf
+equal?} for that matter), although they share the same name, so the birthplace
+of {\cf global} complains that {\cf global} is not there.
+
+Returning finally to the last expression within {\cf change-place}, {\cf
+global} is then dutifully installed in the new place so that both {\cf global}
+and {\cf global}'s new place agree that that is where {\cf global} is.
+Meanwhile, the place of birth of {\cf global} (and its inner conscience {\cf
+mobile}) still believes that {\cf mobile} is there since it was never deleted
+from the birthplace's {\cf things}. Still more bizarre, if we were to ask {\cf
+mobile} where it thinks it is, it would claim to be in the new place with {\cf
+global}.
+
+The moral of this exercise was to emphasize that, in an inheritance-based
+object oriented system, whenever an object (like a {\cf person}) inherits some
+method (like {\cf install}) from an inner object (like a {\cf mobile-object})
+and we want to explicitly invoke that inherited method in the body of some
+method of the outer object (like invoking {\cf mobile-object}'s {\cf install}
+within the {\cf person}'s {\cf install}), then we must be careful to invoke
+that inner method on the {\cf self} upon which the present method invocation
+was initiated.
+
+To see if you really understand this very subtle and important
+point, consider what would happen if we kept Louis' change and made and
+installed a {\cf troll}.  No, Grendel would not try to eat its inner {\cf
+mobile-obj} (since this is not a {\cf person}), but the {\cf dungeon} would
+forever think that Grendel is lurking about there even when Grendel is out
+grubbing for plump gnurds.  In short, inheritance can be a very funny (and
+subtle) thing.
+
+\begin{verse}
+  From there to here, \\
+  from here to there, \\
+  funny things \\
+  are everywhere. \\
+  \mbox{} \\
+  {\bf\sl One fish, two fish, red fish, blue fish} ---Dr.~Seuss [pseud.]
+\end{verse}
+
+\newpage
+
+\paragraph{Problem 3}
+
+To see who moves more often, let's run the clock for a while.
+
+\beginlisp
+==> (clock)
+---Tick---
+TICK-TOCK
+\null
+==> (clock)
+---Tick---
+ERIC moves from ERIC-OFFICE to HAL-OFFICE
+At HAL-OFFICE : ERIC says -- Hi HAL
+TICK-TOCK
+\null
+==> (clock)
+---Tick---
+HAL moves from HAL-OFFICE to TECH-SQUARE
+TICK-TOCK
+\null
+==> (clock)
+---Tick---
+ERIC moves from HAL-OFFICE to ERIC-OFFICE
+TICK-TOCK
+\null
+==> (clock)
+---Tick---
+GRENDEL moves from DUNGEON to EGG-ATRIUM
+TICK-TOCK
+\null
+==> (clock)
+---Tick---
+ERIC moves from ERIC-OFFICE to HAL-OFFICE
+HAL moves from TECH-SQUARE to BUILDING-36
+TICK-TOCK
+\endlisp
+
+(a)  It appears {\cf eric} moves every other call to {\cf clock},
+while {\cf hal} moves once every 3 calls. Of course, we could have predicted
+this by noting that in {\cf ps6-world.scm} we gave {\cf eric} a {\cf
+restlessness} factor of 1 so he pauses 1 tick then moves. {\cf Hal} pauses 2
+ticks then moves. It is clear that {\cf eric} had more coffee this morning.
+
+(b)  A little elementary mathematics tells us they will move at the
+same time once every 6 calls since this is the least common multiple (lcm) of
+their periods of motion (viz., ${\rm lcm}(2,3) = 6$).
+
+\newpage
+
+\paragraph{Problem 4}
+
+The following commands play out the little scenario specified.  Note
+that the key to preventing me from throwing a fit is that I need to
+{\cf lose} the {\cf late-homework} before {\cf eric} {\cf take}s it.
+This sounds suspiciously similar to slipping it under his office door in the
+wee hours.
+
+\beginlisp
+==> (define yourself (make\&install-person 'jb dormitory 1000))
+YOURSELF
+\null
+==> (define late-homework (make\&install-thing 'late-homework dormitory))
+LATE-HOMEWORK
+\null
+==> (ask yourself 'take late-homework)
+At DORMITORY : JB says -- I take LATE-HOMEWORK
+\#T
+\null
+==> (clock)
+---Tick---
+TICK-TOCK
+\null
+==> (ask yourself 'go 'west)
+JB moves from DORMITORY to BUILDING-36
+At BUILDING-36 : JB says -- Hi HAL
+\#T
+\null
+==> (clock)
+---Tick---
+ERIC moves from HAL-OFFICE to TECH-SQUARE
+TICK-TOCK
+\null
+==> (ask yourself 'go 'north)
+JB moves from BUILDING-36 to TECH-SQUARE
+At TECH-SQUARE : JB says -- Hi ERIC
+\#T
+\null
+==> (clock)
+---Tick---
+HAL moves from BUILDING-36 to COMPUTER-LAB
+TICK-TOCK
+\null
+==> (ask yourself 'lose late-homework)
+At TECH-SQUARE : JB says -- I lose LATE-HOMEWORK
+\#T
+\null
+==> (ask eric 'take late-homework)
+At TECH-SQUARE : ERIC says -- I take LATE-HOMEWORK
+\#T
+\endlisp
+
+\newpage
+
+\paragraph{Problem 5}
+
+A {\cf hass-class} is basically a special kind of place, so it
+inherits most of its behavior from a place, with the exception of
+the methods specific to a {\cf hass-class}: {\cf hass-class?}, {\cf
+add-student}, and {\cf openings?}.  In addition, a {\cf hass-class}
+needs to keep track of one thing a generic place doesn't: the number
+of students registered for the class.  We will create a binding to
+hold this state variable with a {\cf let} statement.  The following
+definition for {\cf make-hass-class} will allow us to make this new
+sort of place.
+
+\beginlisp
+(define (make-hass-class name)
+  (let ((students-registered 0)
+        (inner-place (make-place name)))
+    (lambda (message)
+      (cond ((eq? message 'hass-class?) (lambda (self) true))
+            ((eq? message 'openings?) 
+             (lambda (self) (< students-registered 3)))
+            ((eq? message 'add-student)
+             (lambda (self)
+               (cond ((ask self 'openings?)
+                      (set! students-registered (1+ students-registered))
+                      ;; Cannot rely on value returned by SET! so return nicety
+                      students-registered)
+                     (else false))))
+            (else (get-method inner-place message))))))
+\endlisp
+
+\paragraph{Problem 6}
+
+The following definitions create {\cf hass-class}es for 21.009,
+21.005J/21.701J, 9.00, and 14.01.  
+
+\beginlisp
+(define shakespeare (make-hass-class 'shakespeare))
+(define intro-drama (make-hass-class 'intro-drama))
+(define intro-psych (make-hass-class 'intro-psych))
+(define micro       (make-hass-class 'micro      ))
+\endlisp
+
+For the purposes of our simulation, we will assume 21.009 is taught on
+the third floor of Building 14N, so it would be south of Building 36.
+Going upstairs from there, we will have 21.005J/21.701J taught on the fourth
+floor of the same building.  As usual, 9.00 will be taught in 10-250,
+which is south from the EGG Atrium, and 14.01 will be taught somewhere
+in the far east of Sloanland.  
+
+\beginlisp
+(can-go building-36 'south shakespeare)
+(can-go shakespeare 'north building-36)
+(can-go shakespeare 'up    intro-drama)
+(can-go intro-drama 'down  shakespeare)
+(can-go egg-atrium  'south intro-psych)
+(can-go intro-psych 'north egg-atrium)
+(can-go dormitory   'east  micro)
+(can-go micro       'west  dormitory)
+\endlisp
+
+\newpage
+
+Now, {\cf jb} will wander around and check out these classes.  First,
+he will check out 14.01, and test all the methods.  As the Course 14
+staff are notoriously sloppy about bureaucratic matters, {\cf jb} can
+register for the class three times, just to make sure that {\cf
+openings?} method works.
+
+\beginlisp
+==> (define jb (make\&install-person 'jb dormitory 1000))
+JB
+\null
+==> (ask jb 'go 'east)
+JB moves from DORMITORY to MICRO 
+\#T
+\null
+==> (ask micro 'hass-class?)
+\#T
+\null
+==> (ask micro 'openings?)
+\#T
+\null
+==> (ask micro 'add-student)
+1
+\null
+==> (ask micro 'add-student)
+2
+\null
+==> (ask micro 'openings?)
+\#T
+\null
+==> (ask micro 'add-student)
+3
+\null
+==> (ask micro 'openings?)
+()
+\endlisp
+
+Now, {\cf jb} will wander to the other HASS-D classes to confirm that
+they really exist and that the Dean's Office hasn't fired all the
+humanities faculty while he wasn't looking.  Just to prove he's done
+his homework, {\cf jb} spouts off a line from the play he is supposed
+to be reading for 21.009.  (Do you recognize it?)
+
+\beginlisp
+==> (ask jb 'go 'west)
+JB moves from MICRO to DORMITORY 
+\#T
+\null
+==> (ask jb 'go 'west)
+JB moves from DORMITORY to BUILDING-36 
+\#T
+\null
+==> (ask jb 'go 'south)
+JB moves from BUILDING-36 to SHAKESPEARE 
+\#T
+\null
+==> (ask shakespeare 'hass-class?)
+\#T
+\null
+==> (ask jb 'say '("I have drunk and seen the spider."))
+At SHAKESPEARE : JB says -- I have drunk and seen the spider. 
+SAID
+\null
+\endlisp
+% Allow page break
+\beginlisp
+==> (ask jb 'go 'up)
+JB moves from SHAKESPEARE to INTRO-DRAMA 
+\#T
+\null
+==> (ask intro-drama 'hass-class?)
+\#T
+\null
+==> (ask jb 'go 'down)
+JB moves from INTRO-DRAMA to SHAKESPEARE 
+\#T
+\null
+==> (ask jb 'go 'north)
+JB moves from SHAKESPEARE to BUILDING-36 
+\#T
+\null
+==> (ask jb 'go 'west)
+JB moves from BUILDING-36 to EGG-ATRIUM 
+\#T
+\null
+\endlisp
+% Allow page break
+\beginlisp
+==> (ask jb 'go 'south)
+JB moves from EGG-ATRIUM to INTRO-PSYCH 
+\#T
+\null
+==> (ask intro-psych 'hass-class?)
+\#T
+\endlisp
+
+\newpage
+
+\paragraph{Problem 7}
+
+As everyone knows, an undergrad is a person, albeit a special
+kind of person.  Hence, {\cf make-undergrad} includes a person inside
+each undergrad and also has a binding to keep track of the
+undergrad's transcript, created with a {\cf let}.  Most of the methods
+particular to undergrads are not very complicated, except for {\cf
+act}.  However, the way undergrads {\cf 
+act} is fairly similar to the way trolls {\cf act}, in that the
+student tries do some special action if possible (i.e., register for a
+{\cf hass-class}), and otherwise acts like any other person would.
+The definitions for {\cf make-undergrad} and {\cf
+make\&install-undergrad} are given below
+
+\beginlisp
+(define (make-undergrad name place threshold)
+  (let ((transcript '())
+        (normal-person (make-person name place threshold)))
+    (lambda (message)
+      (cond ((eq? message 'undergrad?) (lambda (self) true))
+            ((eq? message 'transcript) (lambda (self) transcript))
+            ((eq? message 'add-hass-class) 
+             (lambda (self)
+               (set! transcript (cons (ask self 'place) transcript))))
+            ((eq? message 'act) 
+             (lambda (self)
+               (cond ((and (is-a (ask self 'place) 'hass-class?)
+                           (is-a (ask self 'place) 'openings?)  ; grammar bug
+                           (not (memq (ask self 'place) transcript)))
+                      (ask self 'add-hass-class)
+                      (ask (ask self 'place) 'add-student)
+                      (ask self 'say 
+                           '("I find myself thinking entirely new thoughts.")))
+                     (else ((get-method normal-person 'act) self)))))
+            (else (get-method normal-person message))))))
+\null
+\endlisp
+% Allow page break
+\beginlisp
+(define (make\&install-undergrad name place threshold)
+  (let ((undergrad (make-undergrad name place threshold)))
+    (ask undergrad 'install)
+    undergrad))
+\endlisp
+
+Now, in a shameless bout of nostalgia, we redefine {\cf jb} to be an
+undergrad, and let him wander about taking HASS-D classes.  Note:
+before doing this, it is crucial to re-zap {\cf ps6-world.scm} and
+then the definitions for HASS-D classes in the previous problem.
+
+\beginlisp
+==> (define jb (make\&install-undergrad 'jb dormitory 1000))
+JB
+\null
+==> (ask jb 'go 'west)
+JB moves from DORMITORY to BUILDING-36 
+\#T
+\null
+==> (ask jb 'go 'south)
+JB moves from BUILDING-36 to SHAKESPEARE 
+\#T
+\null
+==> (ask jb 'act)
+At SHAKESPEARE : JB says -- I find myself thinking entirely new thoughts. 
+SAID
+\null
+\endlisp
+% Allow page break
+\beginlisp
+==> (ask jb 'act)
+JB moves from SHAKESPEARE to INTRO-DRAMA 
+\#T
+\null
+==> (ask jb 'act)
+At INTRO-DRAMA : JB says -- I find myself thinking entirely new thoughts. 
+SAID
+\null
+==> (mapcar (lambda (x) (ask x 'name)) (ask jb 'transcript))
+(INTRO-DRAMA SHAKESPEARE)   ; Poor fella is still one HASS-D shy of commencement
+\endlisp
+
+\paragraph{Problem 8}  It is not such a well-known fact a president
+of MIT, a.k.a.\ a {\cf no-neck-man}, is also an ordinary person
+underneath it all.  In fact, except for a special {\cf act} method, a
+{\cf no-neck-man} is just like anyone else.  The following definitions
+of {\cf make-no-neck-man} and {\cf make\&install-no-neck-man} implement the
+{\cf act} method as described in the problem set.
+
+\beginlisp
+(define (make-no-neck-man name place threshold)
+  (let ((person (make-person name place threshold)))
+    (lambda (message)
+      (cond ((eq? message 'act) 
+             (lambda (self)
+               (let ((graduates (filter (lambda (p)
+                                          (if (is-a p 'undergrad?)
+                                              (> (length (ask p 'transcript))
+                                                 2)
+                                              false))
+                                        (ask (ask self 'place) 'things))))
+                 (cond ((not (null? graduates))
+                        (ask self 'say '("
+                                          Well, it gives me a nice
+                                          warm feeling inside to be at
+                                          another commencement.")) 
+                        (for-each (lambda (g)
+                                    (let ((sheepskin (make\&install-thing 
+                                                      'diploma 
+                                                      (ask self 'place))))
+                                      (ask g 'take sheepskin))
+                                    (display-message
+                                     (list "At" (ask (ask self 'place) 'name)
+                                           ":" (ask self 'name)
+                                           "shakes"
+                                           (ask g 'name) 
+                                           "'s hand."))
+                                    (ask self 'say (list "Congratulations"
+                                                         (ask g 'name)))
+                                    (ask g 'say (list "Thanks," (ask self 'name)
+                                                      "... Bring on the megabucks!!")))
+                                  graduates))
+                       (else ((get-method person 'act) self))))))
+            (else (get-method person message))))))
+\null
+\endlisp
+% Allow page break
+\beginlisp
+(define (make\&install-no-neck-man name place threshold)
+  (let ((no-neck-man (make-no-neck-man name place threshold)))
+    (ask no-neck-man 'install)
+    no-neck-man))
+\endlisp
+
+Now, we create a {\cf no-neck-man} and watch what happens when {\cf
+jb} completes his HASS-D requirement.
+
+\beginlisp
+==> (define chuck (make\&install-no-neck-man 'chuck building-36 2))
+CHUCK
+\null
+==> (ask jb 'go 'down)
+JB moves from INTRO-DRAMA to SHAKESPEARE 
+\#T
+\null
+==> (ask jb 'go 'north)
+JB moves from SHAKESPEARE to BUILDING-36 
+At BUILDING-36 : JB says -- Hi CHUCK 
+\#T
+\null
+==> (ask chuck 'act)   ; JB's still shy one HASS-D
+CHUCK moves from BUILDING-36 to SHAKESPEARE 
+\#T
+\null
+==> (ask jb 'go 'west)
+JB moves from BUILDING-36 to EGG-ATRIUM 
+\#T
+\null
+==> (ask jb 'go 'south)
+JB moves from EGG-ATRIUM to INTRO-PSYCH 
+\#T
+\null
+==> (ask chuck 'act)   ; Nobody around...
+CHUCK moves from SHAKESPEARE to INTRO-DRAMA 
+\#T
+\null
+==> (ask jb 'act)
+At INTRO-PSYCH : JB says -- I find myself thinking entirely new thoughts. 
+SAID                   ; Yeah! JB is destined for The Real World!
+\null
+==> (ask chuck 'act)
+CHUCK moves from INTRO-DRAMA to SHAKESPEARE 
+\#T
+\null
+==> (ask jb 'go 'north)  ; In pursuit of the man with no neck
+JB moves from INTRO-PSYCH to EGG-ATRIUM 
+\#T
+\null
+==> (ask jb 'go 'east)
+JB moves from EGG-ATRIUM to BUILDING-36 
+\#T
+\null
+==> (ask chuck 'act)
+CHUCK moves from SHAKESPEARE to BUILDING-36 
+At BUILDING-36 : CHUCK says -- Hi JB 
+\#T
+\null
+\endlisp
+% Allow page break
+\beginlisp
+==> (ask chuck 'act)  ; Here comes the big moment... hope it doesn't rain
+At BUILDING-36 : CHUCK says -- 
+                   Well, it gives me a nice
+                   warm feeling inside to be at
+                   another commencement. 
+At BUILDING-36 : JB says -- I take DIPLOMA 
+At BUILDING-36 : CHUCK shakes JB 's hand. 
+At BUILDING-36 : CHUCK says -- Congratulations JB 
+At BUILDING-36 : JB says -- Thanks, CHUCK ... Bring on the megabucks!!
+\endlisp
+
+\paragraph{Problem 9}
+
+For this problem, we will define a few new hacks.  First, we will make
+fire extinguishers.  These are nifty toys which contain a certain
+number of charges.  An extinguisher starts with four charges, but
+cannot be recharged.  (It would be an easy extension to allow them to
+recharge in a certain place.  How would you do it?) To use them, we'll
+implement a new method for people called {\cf slag}.  To {\cf slag}
+someone, you discharge the extinguisher, soaking everyone in the room.
+To allow people to get slagged, we need to give them another method
+called {\cf get-soaked}.  After someone does a {\cf slag}ging, all of
+their victims do one of two things.  Anyone in the room without an
+extinguisher will run away.  Anyone who does have an extinguisher will
+return the favor and {\cf slag} anyone still left in the room.
+
+The following definitions create extinguishers and give a way to make
+and install them
+
+\beginlisp
+(define (make-extinguisher place)
+  (let ((charges 4)
+        (me (make-thing 'extinguisher place)))
+    (lambda (message)
+      (cond ((eq? message 'extinguisher?) (lambda (self) true))
+            ((eq? message 'charges)       (lambda (self) charges))
+            ((eq? message 'say)                      ; extinguishers are noisy things
+             (lambda (self list-of-stuff)
+               (display-message
+                 (append (list "At" (ask (ask self 'place) 'name)
+                               ":"  (ask self 'name)
+                               "goes ---")           ; things don't SAY, they GO
+                         (if (null? list-of-stuff)
+                             '("flat")               ; Oh, nevermind
+                             list-of-stuff)))
+               'said))
+            ((eq? message 'hose)
+             (lambda (self)
+               (cond ((and (is-a self 'owned?)   ;can only go off if owned
+                           (> charges 0))        ; and charged
+                      (set! charges (- charges 1))
+                      (ask self 'say '("WHOOOSH!"))
+                      true)
+                     ((is-a self 'owned?)        ;uh-oh, it's empty
+                      (ask self 'say '("SPUTTER! I'm empty."))
+                      false)
+                     (else false))))  ;cannot discharge unowned extinguishers
+            (else (get-method me message))))))
+\null
+\endlisp
+% Allow page break 
+\beginlisp
+(define (make\&install-extinguisher place)
+  (let ((ext (make-extinguisher place)))
+    (ask ext 'install)
+    ext))
+\endlisp
+
+Then, we need to add two methods to {\cf make-person}.  Both methods
+appear below:
+
+\beginlisp
+(define (make-person name birthplace threshold)
+  (let ((mobile-obj (make-mobile-object name birthplace))
+        \vdots)
+    (lambda (message)
+      (cond \ldots
+            \vdots
+            ((eq? message 'slag)
+             (lambda (self)
+               (let ((extinguishers (filter (lambda (thing) 
+                                              (is-a thing 'extinguisher?))
+                                            possessions)))
+                 (cond ((not (null? extinguishers)) 
+                        (let ((charged-extinguishers
+                                (filter (lambda (ext) 
+                                          (not (= (ask ext 'charges)
+                                                  0)))
+                                        extinguishers)))
+                          (ask self 'say '("Eat watery death, scumbag!"))
+                          (cond ((not (null? charged-extinguishers))
+                                 (let ((weapon (car charged-extinguishers))
+                                       (place  (ask self 'place)))
+                                   (ask weapon 'hose)
+                                   (for-each (lambda (victim) (ask victim 'get-soaked))
+                                             (other-people-at-place self place))
+                                   ;unarmed folks run away now
+                                   (for-each (lambda (noncom)
+                                               (ask noncom 'say
+                                                    '("Oh dear, I have no weapon"))
+                                               (ask noncom 'act)) ; run away
+                                             (filter unarmed? 
+                                                     (other-people-at-place self place)))
+                                   (for-each (lambda (com) (ask com 'slag))
+                                             (other-people-at-place self place))
+                                   true))  ; Slagged
+                                (else 
+                                 (let ((weapon (car extinguishers)))
+                                   (ask weapon 'hose)
+                                   (ask self 'say '("Urk.  Oops."))
+                                   (ask self 'lose weapon) ; drop useless thing
+                                   (ask self 'act))    ; run away
+                                 false)))) ; Didn't slag
+                       (else (ask self 'say 
+                                  '("Oh dear, I have no weapon."))
+                             (ask self 'act)  ; run away
+                             false)))))    ; Didn't slag
+\endlisp
+% Allow page break
+\beginlisp
+            ((eq? message 'get-soaked)
+             (lambda (self)
+               (ask self 'say '("Yarg!  I am soggy and hard to light!"))))
+            \vdots))))
+\endlisp
+
+Finally, we need an auxiliary procedure named {\cf unarmed?}
+
+\beginlisp
+(define (unarmed? person)
+  (null? (filter (lambda (thing) (is-a thing 'extinguisher?))
+                 (ask person 'possessions))))
+\endlisp
+
+With all this in place, we can play out a little adventure in Tech
+Square.  Normally, these moves would be interspersed with calls to the
+clock, but we will move everyone manually to make sure things work.
+
+\beginlisp
+==> (define jb    (make\&install-person 'jb    dormitory  10000))
+JB
+\null
+==> (define ziggy (make\&install-person 'ziggy hal-office 1000))
+ZIGGY
+\null
+==> (define stormbringer (make\&install-extinguisher dormitory))
+STORMBRINGER
+\null
+==> (define niagara      (make\&install-extinguisher hal-office))
+NIAGARA
+\null
+==> (ask jb 'take stormbringer)
+At DORMITORY : JB says -- I take EXTINGUISHER 
+\#T
+\null
+==> (ask ziggy 'take niagara)
+At HAL-OFFICE : ZIGGY says -- I take EXTINGUISHER 
+\#T
+\null
+==> (ask ziggy 'slag)
+At HAL-OFFICE : ZIGGY says -- Eat watery death, scumbag! 
+At HAL-OFFICE : EXTINGUISHER goes --- WHOOOSH! 
+At HAL-OFFICE : HAL says -- Yarg!  I am soggy and hard to light! 
+At HAL-OFFICE : HAL says -- Oh dear, I have no weapon 
+HAL moves from HAL-OFFICE to TECH-SQUARE 
+\#T
+\null
+==> (ask jb 'go 'west)
+JB moves from DORMITORY to BUILDING-36 
+\#T
+\null
+\endlisp
+% Allow page break
+\beginlisp
+==> (ask jb 'go 'north)
+JB moves from BUILDING-36 to TECH-SQUARE 
+At TECH-SQUARE : JB says -- Hi HAL 
+\#T
+\null
+==> (ask hal 'say '("Avenge me.  The evil Ziggy hath slagged me most foully."))
+At TECH-SQUARE : HAL says -- Avenge me. The evil Ziggy hath slagged me most foully.
+SAID
+\null
+==> (ask jb 'say '("Fear not, Oh Gallant Lecturer.  I shall avenge thee."))
+At TECH-SQUARE : JB says -- Fear not, Oh Gallant Lecturer.  I shall avenge thee. 
+SAID
+\null
+==> (ask jb 'go 'up)
+JB moves from TECH-SQUARE to HAL-OFFICE 
+At HAL-OFFICE : JB says -- Hi ZIGGY 
+\#T
+\null
+\endlisp
+% Allow page break
+\beginlisp
+==> (ask ziggy 'slag)
+At HAL-OFFICE : ZIGGY says -- Eat watery death, scumbag! 
+At HAL-OFFICE : EXTINGUISHER goes --- WHOOOSH! 
+At HAL-OFFICE : JB says -- Yarg!  I am soggy and hard to light! 
+At HAL-OFFICE : JB says -- Eat watery death, scumbag! 
+At HAL-OFFICE : EXTINGUISHER goes --- WHOOOSH! 
+At HAL-OFFICE : ZIGGY says -- Yarg!  I am soggy and hard to light! 
+At HAL-OFFICE : ZIGGY says -- Eat watery death, scumbag! 
+At HAL-OFFICE : EXTINGUISHER goes --- WHOOOSH! 
+At HAL-OFFICE : JB says -- Yarg!  I am soggy and hard to light! 
+At HAL-OFFICE : JB says -- Eat watery death, scumbag! 
+At HAL-OFFICE : EXTINGUISHER goes --- WHOOOSH! 
+At HAL-OFFICE : ZIGGY says -- Yarg!  I am soggy and hard to light! 
+At HAL-OFFICE : ZIGGY says -- Eat watery death, scumbag! 
+At HAL-OFFICE : EXTINGUISHER goes --- WHOOOSH! 
+At HAL-OFFICE : JB says -- Yarg!  I am soggy and hard to light! 
+At HAL-OFFICE : JB says -- Eat watery death, scumbag! 
+At HAL-OFFICE : EXTINGUISHER goes --- WHOOOSH! 
+At HAL-OFFICE : ZIGGY says -- Yarg!  I am soggy and hard to light! 
+At HAL-OFFICE : ZIGGY says -- Eat watery death, scumbag! 
+At HAL-OFFICE : EXTINGUISHER goes --- SPUTTER! I'm empty. 
+At HAL-OFFICE : ZIGGY says -- Urk.  Oops. 
+At HAL-OFFICE : ZIGGY says -- I lose EXTINGUISHER 
+ZIGGY moves from HAL-OFFICE to ERIC-OFFICE 
+At ERIC-OFFICE : ZIGGY says -- Hi ERIC 
+\#T
+\null
+\endlisp
+% Allow page break
+\beginlisp
+==> (ask jb 'go 'down)
+JB moves from HAL-OFFICE to TECH-SQUARE 
+At TECH-SQUARE : JB says -- Hi HAL 
+\#T
+\null
+==> (ask jb 'say '("I have avenged thee upon the evil Ziggy."))
+At TECH-SQUARE : JB says -- I have avenged thee upon the evil Ziggy. 
+SAID
+\null
+==> (ask jb 'go 'south)
+JB moves from TECH-SQUARE to BUILDING-36 
+\#T
+\null
+==> (ask hal 'say '("Who was that soaked man?"))
+At TECH-SQUARE : HAL says -- Who was that soaked man? 
+SAID
+\endlisp
+
+\paragraph{Problem 10}  The most immediate source of the butchered
+quotation is T.S.~Eliot's {\em Murder in the Cathedral}.  As the
+Knights prepare to kill Thomas Becket on the altar of 
+Canterbury Cathedral, Thomas warns them
+\begin{verse}
+Do with me as you will, to your hurt and shame; \\
+But none of my people, in God's name, \\
+Whether layman or clerk, shall you touch. \\
+This I forbid.
+\end{verse}
+
+For most of the play, Eliot's dialogue stays close to the historical
+accounts of the martyrdom.  This is one of those places where Eliot
+himself cribbed off the reports of they eyewitnesses.  These reports
+are collected in {\em Materials for the History of Thomas Becket,
+Archbishop of Canterbury}, edited by James Craigie Robertson and
+published for the Rolls Series in seven volumes in 1875.  If we check
+the account of the writer referred to as Anonymous Author II in this
+collection, in Volume IV on page 131 we find he reports Thomas as having said:
+
+\begin{quote}
+`Si caput,' inquit, `meum vultis, ex parte Dei per anathema prohibeo
+ne quemquam meorum tangatis.'
+\end{quote}
+
+which translates as 
+
+\begin{quote}
+`If it is my head,' he said, `that you want, on God's behalf, I forbid
+you by anathema to touch any of my people.'
+\end{quote}
+
+How strange for him to have mentioned Project Athena!
+
+\end{document}

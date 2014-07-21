@@ -1,0 +1,23 @@
+Fall91 PS2 README
+
+The Scheme currently installed on Athena is MIT Scheme 7.0.0
+That version of MIT Scheme, with the 6.001 compatibility file
+(which is automatically loaded when you load Scheme), will run
+the problem set 2 code without problems.
+
+If, however, you try to run the problem set 2 code on some later
+version of MIT Scheme (like ver.7.1.0 on a Sun) then you must do
+the following redefinitions:
+
+(define floor floor->exact)
+(define ceiling ceiling->exact)
+(define truncate truncate->exact)
+(define round round->exact)
+
+This is because later versions of MIT Scheme have implemented the
+Revised^4 number exactness protocol, which our problem set code
+does not properly address. To see if your version of Scheme has a
+concept of exactness, see if the primitive procedure EXACT? is
+defined. If it is, you must do the above re-definitions.
+
+Have a nice day.

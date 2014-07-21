@@ -1,0 +1,1178 @@
+
+\input ../6001mac.tex				% On ALTDORF.AI.MIT.EDU
+
+% Renamed to \bigfbox because \closure and other things in 6001mac are defined
+% to use \fbox (native LaTeX) and we don't wanna step on their toes.
+
+\def\bigfbox#1{%
+  \vtop{\vbox{\hrule%
+     \hbox{\vrule\kern3pt%
+ \vtop{\vbox{\kern3pt#1}\kern3pt}%
+ \kern3pt\vrule}}% 
+ \hrule}}
+
+\def\emptybox#1#2{\bigfbox{\vbox to #2{\hbox to #1 {\null}}}}	% Not used?
+
+\begin{document}
+
+\psetheader{Fall Semester, 1991}{Problem Set 8}
+
+\noindent
+Issued: Tuesday, November 5
+
+\noindent
+Tutorial preparation: see below
+
+\noindent
+Written solutions due: Friday, November 15, in Recitation
+
+
+\begin{flushleft}
+Reading assignment: 
+\begin{tightlist}
+
+\item Text: sections 4.1 and 4.2.
+\item Code: attached:
+
+% Uhm... I changed all occurrences of {\tt ...} to {\cf ...} to use the macros
+% approved Code Font. It is \footnotesize \tt.
+
+The evaluator in {\cf ps8-amb.scm} and the parser in {\cf ps8-lang.scm}.
+
+\end{tightlist}
+\end{flushleft}
+
+This problem set explores two key issues:  (1) building an evaluator as a
+procedure that controls the evaluation of legal expressions in a
+language, and (2) using a particular evaluator, and the associated embodied
+model of evaluation, to build a little system for parsing and generating
+English sentences.  In particular, we are going to examine an
+evaluator that extends the one discussed in the text and in lecture to
+include the notion of nondeterministic evaluation.   To do this, we
+are going to use a new and powerful style of programming, based on {\it
+continuations}.  Thus, there are three sections to this problem set: (1) a
+discussion of continuations, (2) an examination of an evaluator based on
+continuations, and (3) the use of a model of computation, as instantiated
+by an evaluator, as a basis for solving a new problem.
+
+\section{Using Continuations as a Programming Style}
+
+The basic idea behind continuations is to provide a means of
+controlling the evaluation process, especially to provide a means of
+backtracking to a previous state in an evaluation (as captured by some
+environment) if some computation fails.  To demonstrate continuations,
+let's go back to an example you saw in Problem Set 4.   That
+problem set contained a simple pattern matcher that
+matched patterns against expressions, where a pattern consisted of a
+list of symbols (including the special character {\cf *}) that was used to match
+expressions consisting of lists of symbols.  A pattern and an
+expression matched if the same sequence of symbols appeared in the two
+lists, with the special case of the character {\cf *} matching any consecutive
+string of symbols.  Examples included matching {\cf (* is a quail)}
+successfully with {\cf (dan is a quail)} and with {\cf (handsome dan is
+a quail)} but not with {\cf (george is a bush)}.
+
+To demonstrate the use of the Continuation Passing Style of programming,
+we are going to rewrite and examine portions of that matcher.
+
+The matcher should look much like the one used in Problem Set 4, except that
+now it has two additional arguments, a {\cf fail} procedure and a
+{\cf succeed} procedure.  If the match fails, the {\cf fail}
+procedure is called.  If the match succeeds, the {\cf succeed}
+procedure is called.  If we are only partway through
+matching a pattern and expression, but it is successful so far, we
+recursively use {\cf match} to match the rest.  If we are dealing
+with the special character {\cf *}, we use {\cf segment-match} to match the
+rest.
+
+The idea is that {\cf segment-match} tries to see if the rest of the
+pattern after {\cf *} matches the expression.  If this hypothesis fails
+then we want to back up, add the first element to those matching the
+{\cf *},  and see if the rest of the pattern now matches the expression.
+For example, suppose we are matching the pattern {\cf (* foo)} against the expression
+{\cf (a b foo)}.  On the first try of the matcher, we assume that {\cf
+'()} matches {\cf *}, and we test if {\cf (foo)} matches {\cf (a b
+foo)}.  Since this fails, we next assume that {\cf (a)} matches {\cf *},
+and test if {\cf (foo)} matches {\cf (b foo)}.  This also fails, so we
+next assume that {\cf (a b)} matches {\cf *}, and test if {\cf (foo)}
+matches {\cf (foo)}.  This succeeds, so we use the continuation {\cf
+succeed} to proceed with our evaluation.
+
+Here is the code:
+
+\beginlisp
+(define (match pat exp fail succeed)
+  (cond ((and (null? pat) (null? exp)) (succeed)) ;done, so go to succeed
+        ((null? pat) (fail))                      ;can't match, so back up using fail
+        ((eq? (car pat) '*) (segment-match pat exp fail succeed)) ;special case
+        ((null? exp) (fail))                      ;can't match, so back up using fail
+        ((equal? (car pat) (car exp))             ;still okay, so recurse
+         (match (cdr pat) (cdr exp) fail succeed))
+        (else (fail))))                           ;can't match, so back up using fail
+\null
+(define (segment-match pat exp fail succeed)
+   (define (try-segment exp)
+      (match (cdr pat)     ; match all but *
+             exp           ; against expression
+             (lambda () (if (null? exp) (fail) (try-segment (cdr exp))))
+                           ;if fails, then include first element of expression
+                           ;in match to *, and try again, until run out of options
+             succeed))
+  (try-segment exp))
+\endlisp
+
+Let's see how these two procedures work at passing continuations to
+control the process of matching patterns and expressions.   To do
+this, we are going to trace through the environment model.  You may
+find it helpful to sketch your own version as we go along.
+
+Suppose we evaluate
+
+\beginlisp
+(match '(* foo) '(a b foo) (lambda () 'lose) (lambda () 'okay))
+\endlisp
+
+in the global environment.  Applying {\cf match} will result in the
+creation of a frame E1, scoped by the global environment, with the
+following bindings:
+
+\begin{picture}(150,120)
+\put(0,80){E1}
+\put(55,115){\makebox(0,0){GE}}
+\put(55,100){\vector(0,1){12}}
+\put(20,100){\line(1,0){70}}
+\put(20,0){\line(0,1){100}}
+\put(90,0){\line(0,1){100}}
+\put(20,0){\line(1,0){70}}
+\put (21,90){{\cf pat}:}
+\put (40,93){\vector(1,0){60}}
+\put (110,93){\makebox(0,0)[l]{{\cf (* foo)}}}
+\put (21,75){{\cf exp}:}
+\put (40,78){\vector(1,0){60}}
+\put (110,78){\makebox(0,0)[l]{{\cf (a b foo)}}}
+\put (21,60){{\cf fail}:}
+\put (40,63){\vector(1,0){60}}
+\put (110,63){\makebox(0,0){P1}}
+\put (110,63){\circle{14}}
+\put (115,63){\closure{\shortstack[l]{params:\\body: {\cf 'lose}}}{GE}}
+\put (21,20){{\cf succeed}:}
+\put (60,23){\vector(1,0){40}}
+\put (110,23){\makebox(0,0){P2}}
+\put (110,23){\circle{14}}
+\put (115,23){\closure{\shortstack[l]{params:\\body: {\cf 'okay}}}{GE}}
+\end{picture}
+
+Note that we will use P1, P2, and so on to identify procedures in the
+environment, and E1, E2 and so on to identify frames in the chain of
+environments.  Also note that the bindings for {\cf pat} and {\cf exp} 
+really should point to box and pointer structures, but for simplicity
+we will just use the printed representation for lists.
+
+Evaluating the body of {\cf match} will, of course, lead to a call to {\cf
+segment-match}, as we would expect.  We want to see if {\cf (*
+foo)} matches {\cf (a b foo)} so we apply {\cf segment-match},
+creating a new frame E2, with the following bindings:
+
+\begin{picture}(450,120)
+\put(0,80){E2}
+\put(55,115){\makebox(0,0){GE}}
+\put(55,100){\vector(0,1){12}}
+\put(20,100){\line(1,0){70}}
+\put(20,0){\line(0,1){100}}
+\put(90,0){\line(0,1){100}}
+\put(20,0){\line(1,0){70}}
+\put (21,90){{\cf pat}:}
+\put (40,93){\vector(1,0){60}}
+\put (110,93){\makebox(0,0)[l]{{\cf (* foo)} --- really same {\cf pat} list as in E1}}
+\put (21,75){{\cf exp}:}
+\put (40,78){\vector(1,0){60}}
+\put (110,78){\makebox(0,0)[l]{{\cf (a b foo)} --- really same {\cf exp} list as in E1}}
+\put (21,60){{\cf fail}:}
+\put (40,63){\vector(1,0){60}}
+\put (110,63){\makebox(0,0){P1}}
+\put (110,63){\circle{14}}
+\put (115,63){\closure{\shortstack[l]{params:\\body: {\cf 'lose}}}{GE}}
+\put (21,20){{\cf succeed}:}
+\put (60,23){\vector(1,0){40}}
+\put (110,23){\makebox(0,0){P2}}
+\put (110,23){\circle{14}}
+\put (115,23){\closure{\shortstack[l]{params:\\body: {\cf 'okay}}}{GE}}
+\end{picture}
+
+The idea is to match {\cf *} to some initial sequence of elements in the
+expression until the remainder of the expression matches the pattern.
+
+When we evaluate the body of {\cf segment-match}, we create a binding
+for {\cf try-segment} in frame E2, and then we apply the corresponding
+procedure, leading to:
+
+
+\begin{picture}(450,200)
+\put(0,160){E2}
+\put(55,195){\makebox(0,0){GE}}
+\put(55,180){\vector(0,1){12}}
+\put(20,180){\line(1,0){70}}
+\put(20,80){\line(0,1){100}}
+\put(90,80){\line(0,1){100}}
+\put(20,80){\line(1,0){70}}
+\put (21,170){{\cf pat}:}
+\put (40,173){\vector(1,0){60}}
+\put (110,173){\makebox(0,0)[l]{{\cf (* foo)} --- really same {\cf pat} list as in E1}}
+\put (21,155){{\cf exp}:}
+\put (40,158){\vector(1,0){160}}
+\put (210,158){\makebox(0,0)[l]{{\cf (a b foo)} --- really same {\cf exp} list as in E1}}
+\put (21,135){{\cf fail}:}
+\put (50,138){\makebox(0,0){P1}}
+\put (50,138){\circle{14}}
+\put (21,110){{\cf succeed}:}
+\put (70,113){\makebox(0,0){P2}}
+\put (70,113){\circle{14}}
+\put (21,82){{\cf try-segment}:}
+\put (82,85){\vector(1,0){40}}
+\put (130,85){\makebox(0,0){P3}}
+\put (130,85){\circle{14}}
+\put (135,85){\closure{\shortstack[l]{params: {\cf exp}\\body: {\cf (match ...)}}}{E2}}
+
+\put(0,40){E3}
+\put(55,60){\vector(0,1){20}}
+\put(20,60){\line(1,0){70}}
+\put(20,0){\line(0,1){60}}
+\put(90,0){\line(0,1){60}}
+\put(20,0){\line(1,0){70}}
+\put (21,40){{\cf exp}:}
+\put (40,43){\vector(1,0){200}}
+\put (240,43){\vector(0,1){110}}
+%\put (110,43){\makebox(0,0)[l]{(a b foo)}}
+\end{picture}
+
+Now, evaluating the body of {\cf try-segment} begins the process of
+trying to
+match the remainder of the expression by calling {\cf match} with the
+following bindings for its parameters:
+
+\begin{picture}(450,120)
+\put(0,80){E4}
+\put(55,115){\makebox(0,0){GE}}
+\put(55,100){\vector(0,1){12}}
+\put(20,100){\line(1,0){70}}
+\put(20,0){\line(0,1){100}}
+\put(90,0){\line(0,1){100}}
+\put(20,0){\line(1,0){70}}
+\put (21,90){{\cf pat}:}
+\put (40,93){\vector(1,0){60}}
+\put (110,93){\makebox(0,0)[l]{{\cf (foo)} --- really a pointer to rest of {\cf pat} list structure in E1}}
+\put (21,75){{\cf exp}:}
+\put (40,78){\vector(1,0){60}}
+\put (110,78){\makebox(0,0)[l]{{\cf (a b foo)} --- really same {\cf exp} list as in E1}} 
+\put (21,60){{\cf fail}:}
+\put (40,63){\vector(1,0){60}}
+\put (110,63){\makebox(0,0){P4}}
+\put (110,63){\circle{14}}
+\put (115,63){\closure{\shortstack[l]{params:\\body: {\cf (if (null? ...))}}}{E3}}
+\put (21,20){{\cf succeed}:}
+\put (70,23){\makebox(0,0){P2}}
+\put (70,23){\circle{14}}
+\end{picture}
+
+Note that we evaluate the arguments for each of the parameters with
+respect to frame E3, and this leads to the creation of a new {\cf fail}
+continuation that is scoped by E3.   In essence, at this stage of
+the computation we are hypothesizing that {\cf exp} matches {\cf pat}.
+If it does not, we want to be able to strip off the first element of
+the expression as part of the segment, and continue, and that is what
+the continuation will allow us to do.
+
+Now in this case, {\cf match} fails, since {\cf (foo)} and {\cf (a b
+foo)} do not correspond.  This means that the {\cf else} clause in the
+body of the definition of {\cf match} will be used, which invokes the
+{\cf fail} continuation. Thus, we apply procedure P4.  This backs up in the
+computation to a previous state since P4 is scoped by environment E3.
+This is exactly what the continuation is intended to do --- it allows
+us to get back to the state we were in before we checked the
+hypothesis that the pattern and expression matched, so we can try the
+next alternative. 
+
+Specifically, applying the {\cf fail} continuation procedure creates a blank
+frame E5, scoped by
+E3, relative to which we evaluate the body of P4.  We then trace up
+through the environment chain to find the binding for {\cf exp}, and
+since it is not null, we call {\cf try-segment} again with a new
+argument.  This leads to the evaluation of the body of {\cf
+try-segment} with respect to frame E6
+
+\begin{picture}(450,80)
+\put(0,40){E5}
+\put(55,75){\makebox(0,0){E3}}
+\put(55,60){\vector(0,1){12}}
+\put(20,60){\line(1,0){70}}
+\put(20,0){\line(0,1){60}}
+\put(90,0){\line(0,1){60}}
+\put(20,0){\line(1,0){70}}
+
+\put(100,40){E6}
+\put(155,75){\makebox(0,0){E2}}
+\put(155,60){\vector(0,1){12}}
+\put(120,60){\line(1,0){70}}
+\put(120,0){\line(0,1){60}}
+\put(190,0){\line(0,1){60}}
+\put(120,0){\line(1,0){70}}
+\put (121,50){{\cf exp}:}
+\put (140,53){\vector(1,0){60}}
+\put (210,53){\makebox(0,0)[l]{{\cf (b foo)} --- really a pointer to rest of {\cf exp} list in E1}}
+\end{picture}
+
+and basically we do the same thing.  We call {\cf match} with a new set
+of arguments, including the creation of a new {\cf fail} continuation.
+
+\begin{picture}(150,120)
+\put(0,80){E7}
+\put(55,115){\makebox(0,0){GE}}
+\put(55,100){\vector(0,1){12}}
+\put(20,100){\line(1,0){70}}
+\put(20,0){\line(0,1){100}}
+\put(90,0){\line(0,1){100}}
+\put(20,0){\line(1,0){70}}
+\put (21,90){{\cf pat}:}
+\put (40,93){\vector(1,0){60}}
+\put (110,93){\makebox(0,0)[l]{{\cf (foo)} --- really a pointer to rest of {\cf pat} list structure in E1}}
+\put (21,75){{\cf exp}:}
+\put (40,78){\vector(1,0){60}}
+\put (110,78){\makebox(0,0)[l]{{\cf (b foo)} --- really a pointer to rest of {\cf exp} list structure in E1}}
+\put (21,60){{\cf fail}:}
+\put (40,63){\vector(1,0){60}}
+\put (110,63){\makebox(0,0){P5}}
+\put (110,63){\circle{14}}
+\put (115,63){\closure{\shortstack[l]{params:\\body: {\cf (if (null? ...))}}}{E6}}
+\put (21,20){{\cf succeed}:}
+\put (70,23){\makebox(0,0){P2}}
+\put (70,23){\circle{14}}
+\end{picture}
+
+Matching again fails, so we repeat the process.  The next time around
+matching will succeed since {\cf (foo)} does in fact match {\cf (foo)}.
+When this occurs, the {\cf succeed} continuation is applied, leading
+to the printing of the message {\cf okay} at top level.
+
+The main point to understand in this example is how one can use a
+continuation to recover the state of a computation, as captured by an
+environment, by using a procedure created within that environment to
+continue evaluation if some other procedure fails.
+
+{\samepage					% Old printout had a lousy pagebreak
+\section{Tutorial Problem 1 (of 2)}
+
+\nopagebreak[4]
+Suppose we change {\cf segment-match} as follows:
+
+\nopagebreak[4]
+\beginlisp
+(define (segment-match pat exp fail succeed)
+   (define (fail-retry) (if (null? exp) (fail) (try-segment (cdr exp))))
+   (define (try-segment exp)
+      (match (cdr pat)
+             exp
+             fail-retry
+             succeed))
+  (try-segment exp))
+\endlisp
+
+\nopagebreak[4]
+Explain what will happen in the evaluation process if you use this version of
+{\cf segment-match}.   You may again find it very useful to use the
+environment model to help you do this.
+}
+
+\section{An Evaluator Using Continuations}
+
+Now we can use the idea of continuations to build an evaluator.  The
+attached code in {\cf ps8-amb.scm} shows such an evaluator, based
+on extending the evaluator discussed in lecture and in the text.  For
+now, you can ignore the code dealing with {\cf amb} expressions. (We'll
+get back to that shortly.)  In particular, it is important for you to
+examine how {\cf amb-eval} evaluates expressions with respect to some
+environment.
+
+\section{Tutorial Problem 2 (of 2)}
+
+(a) Using the same idea as above, explain the evolution of the process of
+evaluating
+
+\beginlisp
+(amb-eval '(define foo (lambda (x) (+ x 3)))
+          the-global-environment
+          (lambda (val fail) (print val))
+          (lambda () 'lose))
+\endlisp
+
+You may assume that {\cf the-global-environment} contains bindings for
+the primitive procedures of {\sc Scheme}, and you may ignore details of how
+bindings in the environment are actually structured.
+
+(b) Also explain the evolution of the evaluation of
+
+\beginlisp
+(amb-eval '(foo 2)
+          the-global-environment
+          (lambda (val fail) (print val))
+          (lambda () 'lose))
+\endlisp
+
+\vskip 10pt
+
+\bigfbox{\hbox{\vbox{Problem 0: As part of your write up for this problem set,
+please turn in a summary of your explanations for all tutorial problems,
+including any relevant environment diagrams you may have drawn.}}}
+
+\section{Adding Nondeterminism}
+
+Now that you have an idea of how to use continuations in an evaluator,
+we can use this method to incorporate nondeterminism into our language
+by adding the new SPECIAL FORM {\cf amb}.
+The idea is that when the interpreter reaches an expression of the form
+{\cf (amb $e_1$ $e_2$)}
+it should nondeterministically select one of the expressions $e_1$ or $e_2$ and
+continue
+the evaluation with that expression.  Since the language is nondeterministic,
+a given expression can have many different possible executions and many
+different possible values.  In general, the special form
+{\cf amb} can take any number of arguments, one of which is
+nondeterministically selected at run time.  For example,
+
+\beginlisp
+(list (amb 1 2 'a) (amb 'hal 'eric))
+\endlisp
+
+has six different possible values:
+
+\beginlisp
+(1 hal)
+(1 eric)
+(2 hal)
+(2 eric)
+(a hal)
+(a eric)
+\endlisp
+
+As another example consider the procedure
+
+\beginlisp
+(define (a-number-between low high)
+  (cond ((= low high) low)
+        (else (amb low (a-number-between (1+ low) high)))))
+\endlisp
+
+The expression {\cf (a-number-between 1 10)}
+has ten different possible values, each of which is an integer between
+1 and 10.
+
+If we want to write procedures that use {\cf amb}, it is convenient to
+introduce another useful  
+primitive called {\cf fail}.  We can think of {\cf fail} as a procedure
+which, when called, causes the computation to ``fail'' --- the current
+evaluation aborts and no value is produced.  Consider the following procedure.
+
+\beginlisp
+(define (a-pythagorean-triple-between low high)
+  (let ((n (a-number-between low high))
+        (m (a-number-between low high))
+        (p (a-number-between low high)))
+    (cond ((= (+ (* n n) (* m m)) (* p p))
+           (list n m p))
+          (else (fail)))))
+\endlisp
+
+The expression {\cf (a-pythagorean-triple-between 1 10)} has
+1000 different possible executions.  All but four of these executions fail.
+The four non-failing executions have values {\cf (3 4 5)}, {\cf (4 3 5)}, {\cf (6 8 10)},
+and {\cf (8 6 10)}.  In general, if {\cf (<n> <m> <p>)} is a non-failing value
+of the expression {\cf (a-pythagorean-triple low high)} then {\cf n},
+{\cf m}, and {\cf p} are numbers between the values of {\cf low} and
+{\cf high} such that
+{\cf n}$^2$ $+$ {\cf m}$^2$ = {\cf p}$^2$.  In other words, there exists a
+right triangle whose sides have length {\cf n}, {\cf m}, and {\cf
+p}.\footnote{An interesting fact is that no solutions exist for $n^i +
+m^i = p^i$ for $i \geq 3$.  We have an elegant proof of this but this
+footnote is too small to contain it.}
+
+One way to introduce nondeterminism into the meta-circular evaluator is
+to use a pseudo-random number generator to decide which branch to take
+whenever the evaluator encounters an 
+application of the special form {\cf amb}.  If each branch of the {\cf amb}
+is equally likely, then the expression {\cf (a-number-between 1 10)}
+has a 50\% chance of returning 1, a 25\% chance of returning 2, and so on.
+Under this random evaluator, an evaluation of the expression
+{\cf (a-pythagorean-triple 1 10)} would almost certainly fail ---
+the probability of getting a nonfailing value is approximately one in
+2000. (Each of {\cf (3 4 5)} and {\cf (4 3 5)} have a one in $2^{12}$
+chance while each of {\cf (6 8 10)} and {\cf (8 6 10)} have a
+one in $2^{24}$ chance.)
+% line above formerly incorrectly read 2^23 -- PGS
+
+We are often interested in determining whether or not a given nondeterministic
+expression has a nonfailing value.  One might try running the
+probabilistic interpreter over and over again hoping to find a
+nonfailing value.  By the discussion above, however, this may not be a
+very fruitful way of proceeding.  A much better approach is 
+to {\em systematically search} the space of all possible executions.
+We have constructed a modified version of the meta-circular evaluator
+which we call the {\em search evaluator}, which
+systematically searches the space of all possible executions of a
+given expression. When the search evaluator encounters an application
+of {\cf amb} it initially selects the first argument.  If evaluation
+of this selection does not result in a nonfailing execution, then the
+evaluator ``backs up'' and tries the second argument, and so on.  
+
+The search evaluator is used to implement a read-eval-print loop with some
+unusual properties.  The read-eval-print loop reads an expression and
+prints the value of the first nonfailing execution.  For example,
+consider the following interaction.
+
+\beginlisp
+==> (driver-loop)
+Starting a new problem
+\null
+AMB-EVAL==>> (a-number-between 1 10)
+1
+\null
+AMB-EVAL==>> (a-pythagorean-triple-between 1 10)
+(3 4 5)
+\endlisp
+
+The read-eval-print loop allows the user to ask for alternative executions
+of an expression.  If the first execution is not desired, or if one simply
+wants to see the value of the next execution, one can ask the interpreter to
+back up and attempt to generate a second nonfailing execution.  We do
+this by using the special procedure {\cf next}.  For example,
+we might have the following interaction.
+
+\beginlisp
+==> (driver-loop)
+Starting a new problem
+\null
+AMB-EVAL==>> (a-number-between 1 10)
+1
+\null
+AMB-EVAL==>> (next)
+2
+\null
+AMB-EVAL==>> (next)
+3
+\null
+AMB-EVAL==>> (a-pythagorean-triple-between 1 4)
+4
+\endlisp
+
+This last one looks a bit odd. What has happened is that {\cf
+(a-pythagorean-triple-between 1 4)} has not been able to return a value,
+so it fails.  The interpreter then backs up to the last thing it was
+evaluating, namely {\cf (a-number-between 1 10)}, and continues
+evaluation until it returns a value.  If we continue 
+
+\beginlisp
+AMB-EVAL==>> (a-pythagorean-triple-between 1 10)
+(3 4 5)
+\null
+AMB-EVAL==>> (next)
+(4 3 5)
+\null
+AMB-EVAL==>> (next)
+(6 8 10)
+\null
+AMB-EVAL==>> (next)
+(8 6 10)
+\null
+AMB-EVAL==>> (next)
+5
+:(A-PYTHAGOREAN-TRIPLE-BETWEEN 1 10) --> (3 4 5)
+\endlisp
+
+In the last example, {\cf (a-pythagorean-triple-between 1 10)} could
+not return a value, so the interpreter again backed up to the
+previous evaluation, and continued. When doing this, the interpreter
+goes back over all the expressions it has read in at the {\cf AMB-EVAL==>>}
+prompt following the the expression it has just backed up to and prints out the
+evaluation of each, hence the line
+
+\beginlisp 
+:(A-PYTHAGOREAN-TRIPLE-BETWEEN 1 10) --> (3 4 5)
+\endlisp
+
+We can return the evaluator to its original state by typing the special
+procedure
+
+\beginlisp
+AMB-EVAL==>> (done)
+Starting a new problem
+\endlisp
+
+This clears the history of the evaluator and allows us to start with a
+fresh evaluation.
+
+Note that we can intertwine evaluation of different expressions:
+
+\beginlisp
+AMB-EVAL==>> (define x 42)   ;to make the "x" variable
+X
+\null
+% SEQUENCE not implemented in AMBScheme so AMBScheme SET!has been altered to
+% make it a little more informative (i.e., noisy)
+AMB-EVAL==>> (set! x (a-number-between 1 10))
+(DONE-- NEW VALUE = 1)
+\null
+AMB-EVAL==>> (next)
+(DONE-- NEW VALUE = 2)
+\null
+AMB-EVAL==>> (next)
+(DONE-- NEW VALUE = 3)
+\null
+AMB-EVAL==>> (list x 4 5)
+(3 4 5)
+\null
+AMB-EVAL==>> x
+3
+\null
+AMB-EVAL==>> (next)
+(DONE-- NEW VALUE = 4)
+:(LIST x 4 5) --> (4 4 5)
+:X --> 4
+\endlisp
+
+\section{Laboratory Assignment}
+
+\bigfbox{\hbox{\vbox{Remember to turn in an answer to Problem 0 above,
+as part of your solutions.}}}
+
+In this problem set we will be using a search evaluator written in
+{\sc Scheme}.  The file {\cf ps8-amb.scm} contains an interpreter for
+{\sc AMBScheme} ---{\sc Scheme} augmented with {\cf amb}.  The interpreter has the
+same basic structure as the one in SICP section~4.1, but there are
+major differences, which we highlight below.
+
+
+{\sc AMBScheme} is built on top of {\sc Scheme} so that we can inherit many of
+the basic properties of {\sc Scheme} (after all, we still want the usual
+ideas of evaluation to work, we just want to enhance our language to
+include {\cf amb}).
+
+In usual {\sc Scheme}, the procedures {\cf eval} and {\cf apply} control
+the evaluation of expressions with respect to an environment, with the
+most important aspect of this evaluation being the unwrapping of the
+application of a compound procedure into the evaluation of its body
+with respect to an extended environment in which the parameters of
+the procedure are bound to the evaluated argument values.  Because
+these rules of evaluation always hold (except for the special forms),
+the flow of control for this evaluation is built directly into the procedures
+{\cf eval} and {\cf apply}.  
+
+When we add the notion of {\cf amb}, our
+evaluator changes in a dramatic way.  In particular, we need to be able
+to ``back up'' in our evaluation process and pick up an earlier
+evaluation.  This means, we need a way of keeping track of what we were
+doing before we began an evaluation so that we can go back to that
+state if the current evaluation fails.  We do this be means of a
+mechanism called a {\it continuation}. The style of programming we shall adopt
+for this problem set is therefore know as {\it continuation passing style}
+(CPS).
+
+In particular, in our new {\sc AMBScheme}, we will have two procedures {\cf
+amb-eval} and {\cf amb-apply} that take the place of {\sc Scheme}'s
+procedures {\cf eval} and {\cf apply}.  They will behave similarly to
+the usual {\cf eval} and {\cf apply}, but they will also recognize
+new special forms like {\cf amb} and they will have the ability to go
+back to a previous evaluation if the current one fails.  To do this,
+{\cf amb-apply} and {\cf amb-eval}, and all of their auxiliary
+procedures, have two extra arguments, {\cf got-one} and {\cf
+fail}.  {\cf Got-one} is a procedure that is applied once a value is
+obtained, so it specifies what should happen to the evaluation process
+once the current expression returns a value.  {\cf Got-one} takes two
+arguments, a {\cf value} and a {\cf fail} procedure.  {\cf Fail} is a
+procedure that is called when an expression has no further values,
+thus it specifies what to do when the evaluation process fails to
+return a value.
+
+If you look at the code for {\cf amb-eval}  you will see that modulo
+these changes, most of the simple cases for evaluation are the same as
+in the usual {\sc Scheme}, e.g.~evaluating a number simply causes the
+number to be returned, evaluating a variable simply looks up the
+variable in the current environment, and so on.
+
+If you load the file {\cf ps8-amb.scm} into {\sc Scheme} and type {\cf
+(initialize-evaluator)}, you will find yourself typing at the driver
+loop.  Please note that {\sc AMBScheme} running in {\sc Scheme} contains no
+error system of its own.  If you hit an error or press the {\sc abort}
+key, you may bounce back into {\sc Scheme}. To get back into {\sc AMBScheme}
+where you left off, type {\cf (magic-recontinue)} and it will pretend nothing
+ever went wrong. Using {\cf (driver-loop)} to get back into {\sc AMBScheme} is
+similar in that the {\sc AMBScheme} environment will be as you left it, but all
+your pending fail continuations will be lost so you will be starting on a new
+{\sc AMBScheme} problem.
+
+The driver loop uses the prompt {\cf AMB-EVAL==>>} instead of the
+ordinary {\sc Scheme} prompt so you won't lose track of which evaluator you are
+talking to.
+
+{\cf Initialize-evaluator} creates a global environment in which
+to evaluate expressions.  As in the usual {\sc Scheme} case, we will need
+some primitive procedures, and we inherit these from the underlying
+{\sc Scheme} by evaluating {\cf (setup-environment)}.  You should look at
+the attached code to see how this is done.  Note that {\cf
+eval-in-initial-env} performs evaluation in the usual {\sc Scheme}
+environment so that we can get hold of the underlying {\sc Scheme}
+primitives and move them into our new global environment.
+Because of this, {\cf apply-primitive-procedure} will use the
+underlying {\sc Scheme}'s {\cf apply} when applying primitives.  Notice that
+the interface to the underlying {\sc Scheme} system via {\cf
+apply-primitive-procedure} is handled somewhat differently from the
+way it is handled in the book.  See the attached code for details.
+Also note from the code in {\cf setup-environment} that you can use {\cf
+extend-primitives} within {\sc AMBScheme} to add new primitives to your
+evaluator.
+
+\section{Playing with {\sc AMBScheme}}
+
+Start up the interpreter and try a few simple expressions.  If you
+bounce out into {\sc Scheme}, you can re-enter the interpreter by typing
+{\cf (magic-recontinue)} or, if you want to forget all pending failure
+continuation, use {\cf (driver-loop)}.  If you get hopelessly fouled
+up, you can run {\cf (initialize-evaluator)}, but this re-initializes the global
+environment so you will lose any definitions you have made within {\sc
+AMBScheme} as well as any pending failure continuation you may have built up.
+
+Also, it is instructive to run the interpreter while tracing {\cf
+amb-eval} and/or {\cf amb-apply}, to see just how the evaluator
+works.  (You will also probably need to do this while debugging your
+code for this assignment.)  If you do trace these procedures, you may
+want to use the {\sc Scheme} procedures {\cf print-breadth} and {\cf
+print-depth} to avoid printing huge listings of the {\cf env} argument
+to these procedures (printed by the tracer), which is in general a
+circular structure.  (See the Chipmunk manual for information on the
+use of {\cf print-breadth} and {\cf print-depth}.)
+
+\section{Modifying the Interpreter}
+
+You have probably discovered that the {\sc AMBScheme} evaluator in {\cf
+ps8-amb.scm} does not provide a definition of the {\cf if} special
+form.  However, we would like to use {\cf if}.  Let's add the special
+form to the interpreter.  
+
+
+A simple example of the behavior we expect is illustrated below:
+
+\beginlisp
+AMB-EVAL==>> (if (amb true false)
+                 'true-path
+                 'false-path)
+TRUE-PATH
+\null
+AMB-EVAL==>> (next)
+FALSE-PATH
+\null
+AMB-EVAL==>> (next)
+Starting a new problem
+\endlisp
+
+Of course, we could get this behavior using {\cf cond}.  The point of
+having {\cf if} as a special form is so that we can control the order of
+evaluation, first evaluating the predicate clause, before proceeding to
+the evaluation of either the consequent or the alternative clause.
+
+\beginlisp
+AMB-EVAL==>> (define (test-if n k)
+                (if (= n 0)
+                    (fail)
+                    (/ k n)))
+TEST-IF
+\null
+AMB-EVAL==>> (test-if 4 5)
+1.25
+\null
+AMB-EVAL==>> (test-if 0 10)
+Starting a new problem
+\endlisp
+
+In this example, we see that the {\cf if} special will avoid the error
+of dividing by zero, because it evaluates the predicate clause before
+evaluating either of the other two clauses.
+
+\paragraph{Problem 0}
+
+As part of your write up for this problem set, please turn in a summary of your
+explanations for all tutorial problems, including any relevant environment
+diagrams you may have drawn.
+
+
+\paragraph{Problem 1}
+
+We will define our {\cf if} special form in four steps:
+
+
+(a)
+First we need to make syntactic definitions for recognizing and
+getting the parts of an {\cf if} special form.  Write procedure
+definitions for {\cf if?}, {\cf if-predicate}, {\cf 
+if-consequent}, and {\cf if-alternative}, analogous to the syntactic
+procedures you will find for the other special forms.  First, {\sc abort} your {\sc AMBScheme},
+if it is running, and zap your definitions into the underlying {\sc Scheme}
+system.  Test your definitions to see that they correctly recognize
+{\cf if} expressions and get the correct parts.
+
+(b)
+Next, copy the procedure {\cf amb-eval} from the file {\cf
+ps8-amb.scm} into your answers file.  Add a dispatch entry to
+handle {\cf if}, going off to a procedure {\cf eval-if}.
+
+(c)
+Write {\cf eval-if}.  You can get a good idea of what is needed by
+looking at {\cf eval-cond}, but {\cf eval-if} is simpler.
+
+(d)
+Zap your answers into {\sc Scheme}.  Typing {\cf (driver-loop)}
+should get
+you going again.  First check that old code still works.  Then debug
+your {\cf if} special form.  We will assume that you have it working
+for the rest of the assignment---ask for help now if you have
+trouble.  Be sure to turn in a photo session illustrating your
+solution.  In particular, be sure to illustrate that your solution works
+on the simple examples above, as well as other examples of your choosing.
+
+\section{Using {\sc AMBScheme} -- Natural Language Parsing and Generation}
+
+The file {\cf ps8-lang.scm} contains some definitions using {\cf
+amb} that will be useful for parsing simple English sentences.  It begins by
+defining procedures for various parts of speech (e.g., {\cf noun}) which
+nondeterministically returns some word that has that part of speech.
+
+The parser works by trying to match the subcomponents of a sentence
+(initially defined as a noun-phrase followed by a verb-phrase)
+against the input string (represented as a list of words, without
+punctuation).  Each subcomponent further decomposes the matching
+process in a similar way. For example, a subcomponent called an {\cf
+np3} is the core of a noun phrase, and contains an article, then zero
+or more adjectives, followed by a series of nouns.  An example might
+be ``the tired brilliant student professor''.\footnote{Note that this
+grammar expresses only (some of) the syntactic structure of English,
+but does not at all guarantee that the well-formed sentences or
+phrases are meaningful.  For example, ``the student student student
+student student student student'' is a grammatical, though hardly
+meaningful, noun phrase.} A {\cf noun-phrase} is just one of these,
+with possible prepositional phrases following it.  You should look at
+the code to determine the others kinds of subcomponents in our
+natural language system.  There are several facts to note:
+
+\begin{enumerate}
+\item {\cf amb} is used to express alternative structures for a grammatical
+      phrase.
+\item In a left-to-right parser such as this, we cannot use the ``obvious'' way
+      to write recursive grammar rules that allow one to tack on any number of
+      ``things'' on the right of a core phrase.  See the note at the definition
+      of {\cf parse-noun-phrase}.
+\item At the ``bottom'', where we actually check particular parts of speech
+      against the input string, we use {\cf check-word}.  This generates all
+      possible values of the part of speech and returns the result of
+      {\cf build-prim} if any succeeds.
+\item The structure of the parse is built up by {\cf build}.
+\item If the sentence is ambiguous (either because some word might belong to
+      more than one syntactic category or because there are alternative ways to
+      decompose the structure of the sentence) then the result of {\cf parse}
+      will have different possible values corresponding to the different ways
+      the sentence can be parsed.
+\end{enumerate}
+
+\paragraph{Problem 2}
+
+Load the language system into your evaluator.  To do this, use the
+loading function {\cf user-load} within {\sc AMBScheme} to load the
+file {\cf ps8-lang.scm}.  You will
+note from the code that this loading procedure will evaluate the
+definitions of the language within the context of your {\sc AMBScheme} evaluator.
+It is therefore more perspicacious to invoke {\cf user-load} from within {\sc
+AMBScheme}:
+
+
+\beginlisp
+==> (driver-loop)
+AMB-EVAL==>> (user-load "psets:ps8-lang.scm")
+\endlisp
+
+Or, on Athena:
+
+\beginlisp
+==> (driver-loop)
+AMB-EVAL==>> (user-load "/mit/6.001/problem-sets/ps8/ps8-lang.scm")
+\endlisp
+
+Given the grammar and vocabulary in {\cf ps8-lang.scm}, parse a half-dozen
+interesting sentences and show their results.  Did you get any that were
+ambiguous?  Is it possible, with what is given?
+
+\paragraph{Problem 3}
+
+The given grammar can parse only so-called ``subject-verb'' sentences.  Thus,
+it cannot handle sentences such as
+%
+\begin{itemize}
+  \item The professor lectures the class.
+  \item The professor gives the assignment to the student.
+\end{itemize}
+%
+Extend the given grammar to be able to handle such sentences.  Demonstrate your
+extensions and show that they fail appropriately on non-sentences.
+
+Be careful in how you manage your grammar hacks: this is code that should be
+fed to your {\sc AMBScheme} evaluator, {\bf not} to the normal {\sc Scheme}
+evaluator.  We suggest therefore that, in order to avoid confusing yourself,
+you should make all your grammar hacks in a file separate from your {\cf if}
+{\sc Scheme} code hacks.  Call this separate grammar hacks file something like
+{\cf ps8-grammar.scm} then use {\cf user-load} to load in this grammar code
+rather than trying to zap it into a {\sc Scheme} that is running your {\sc
+AMBScheme} evaluator.  The reason is that when you zap stuff into a {\sc
+Scheme} running the {\sc AMBScheme} evaluator, all the output that {\sc
+AMBScheme} would printout for the result of the evaluation and the prompt for
+the next input will be barfed into your {\sc EDWIN} buffer.  This is very
+messy.  Using {\cf user-load} instead avoids all this bother.
+
+\paragraph{Problem 4}
+
+Alyssa P.~Hacker is actually more interested in {\sl generating} interesting
+English sentences than in parsing them.  She observes that somehow the grammar
+of English is embedded in our programs that do parsing.  She reasons that by
+simply changing the bottom-most procedure, {\cf check-word}, so that it just
+ignores the ``input sentence'' and instead always succeeds and generates an
+appropriate word, we can actually use the programs we had built for parsing to
+do generation instead.
+
+Implement Alyssa's idea, and show the first half-dozen or so sentences generated.
+
+This is grammar code too, intended to be ingested by {\sc AMBScheme}, so this
+too should go in your {\cf ps8-grammar.scm} file, which you will load into {\sc
+AMBScheme} using {\cf user-load}.
+
+\paragraph{Problem 5}
+
+You will notice that, although Alyssa's idea works just fine (and is
+surprisingly simple), the sentences that it generates are a bit boring---they
+don't sample the possible sentences of this language in a very interesting
+way.  In fact, the grammar is highly recursive in many places, but Alyssa's
+technique ``falls into'' one of these and gets stuck.  Ben Bitdiddle suggests an
+interesting out.  If we could change the {\sc AMBScheme} interpreter so that it did
+not always try alternative values of an {\cf amb} form in left-to-right order
+but instead chose the sequence in random order, perhaps we would wind up
+exploring a broader variety of generated sentences.
+
+Implement Ben's suggestion by redefining {\cf eval-amb}.  (Be careful, it's
+very tricky to debug subtle errors here.) This is {\sc Scheme} code so you will
+want to put this code in your usual {\cf ps8-answers.scm} file with your code
+from problem~1.  Make sure your {\sc Scheme} buffer is not still running the
+{\sc AMBScheme} evaluator before you start zapping these definitions into {\sc
+Scheme}!
+
+Now re-invoke the {\sc AMBScheme} evaluator and show, with some very simple
+examples, that your revised definition works and succeeds in randomizing the
+order in which the search space defined by choices is explored.  Now see
+whether this change succeeds as Ben expects with respect to the set of
+sentences you can now generate.  (You should not need to re-load any of the
+grammar code you already loaded into {\sc AMBScheme} if you do this correctly
+and can avoid calling {\cf (initialize-evaluator)}.  Think about it.) Explain
+and justify your observations.
+
+\end{document}
+
+% Yow! Looks like this problem set used to be pretty long... though it looks
+% a little short now. Is there a quiz just before it or a long weekend or
+% something?
+
+\subsection{Rational approximations to floating point numbers.}
+
+Consider the following procedures which provide a simple implementation of
+rational numbers. (These definitions are provided in the file {\cf ps7-rational.scm}.)
+
+\beginlisp
+(define (make-rat n d)
+  (let ((g (gcd n d)))
+    (cons (/ n g) (/ d g))))
+\null
+(define numer car)
+\null
+(define denom cdr)
+\null
+(define (+rat r1 r2)
+  (make-rat (+ (* (denom r2) (numer r1))
+               (* (denom r1) (numer r2)))
+            (* (denom r1) (denom r2))))
+\null
+(define (*rat r1 r2)
+  (make-rat (* (numer r1) (numer r2))
+            (* (denom r1) (denom r2))))
+\null
+(define (rat->number r)
+  (/ (numer r) (denom r)))
+\endlisp
+
+We can now define a procedure called {\cf a-rational-to} such that
+the expression {\cf (a-rational-to bound)} uses the procedure
+{\cf a-number-between} to nondeterministically construct a rational number that whose
+numerator and denominator are between 1 and {\cf bound}.  For example,
+{\cf (a-rational-to 3)} might return any of {\cf (1 1)}, {\cf (1 2)},
+{\cf (1 3)}, {\cf (2 1)}, {\cf (2 2)}, {\cf (2 3)}, {\cf (3 1)}, {\cf (3 2)},
+and {\cf (3 3)}.  Of course, reducing by the greatest common divisor will make
+some of these values the same (e.g., {\cf (1 1)} and {\cf (2 2)}).
+
+\beginlisp
+(define (a-rational-to n)
+  (let ((num (a-number-between 1 n))
+        (den (a-number-between 1 n)))
+    (make-rat num den)))
+\endlisp
+
+Given this, we can implement an astoundingly dumb way to find a simple rational
+approximation to a (computer representation of a) real number.  The procedure
+{\cf rational-approximation} will return such an approximation to its {\cf
+number} argument, if there is a rational number with numerator and denominator
+both no larger than {\cf k} that is {\cf close-enuf?}.
+
+\beginlisp
+(define (rational-approximation number k)
+  (let ((rat (a-rational-to k)))
+    (cond ((close-enuf? number rat) rat)
+          (else (fail)))))
+\null
+(define (close-enuf? number rat)
+  (< (abs (- (rat->number rat) number)) 0.01))
+\endlisp
+
+One difficulty with the above method is that we must specify the number $k$.
+Ben Bitdiddle suggests that this problem can be overcome using the
+following definitions.
+
+\beginlisp
+(define (a-natural-number)
+  (amb 1
+       (1+ (a-natural-number))))
+\null
+(define (a-positive-rational)
+  (let ((n (a-natural-number))
+        (m (a-natural-number)))
+    (make-rat n m)))
+\null
+(define (bens-rational-approximation x)
+  (let ((r (a-positive-rational)))
+    (cond ((close-enuf? r x) r)
+          (else (fail)))))
+\endlisp
+
+Ben discovers that {\cf (rational-approximation .75)}
+seems to run for a very long time, even though {\cf (make-rational 3 4)}
+is an exact solution.  Alyssa P.~Hacker then suggests that Ben examine
+the way the search evaluator explores the values of the expression
+{\cf (a-positive-rational)}.  Ben observes the following behavior.
+
+\beginlisp
+AMB-EVAL==>(a-positive-rational)
+(1 . 1)
+\null
+AMB-EVAL==>(next)
+(1 . 2)
+\null
+AMB-EVAL==>(next)
+(1 . 3)
+\null
+AMB-EVAL==>(next)
+(1 . 4)
+\null
+AMB-EVAL==>(next)
+(1 . 5)
+\null
+AMB-EVAL==>(next)
+(1 . 6)
+\endlisp
+
+It seems that the search evaluator never tries {\cf (3 .
+4)}.\footnote{The problem is that the tree of possible executions is
+infinitely deep.  The search evaluator uses depth-first search.
+Depth-first search on infinite trees is ``unfair'' --- some branches
+of the search tree are never explored.  Breadth-first search is fair,
+even for infinite search trees.  However, breadth-first search is
+less efficient than depth-first search and is almost never used in
+practice.}
+
+\paragraph{Problem 6}
+
+Define a different version of the nondeterministic procedure {\cf a-positive-rational}
+which can return, as a possible value, any positive rational number whatsoever.
+Your definition must have the property that when the search
+evaluator is given the expression {\cf (a-positive-rational)} it
+searches all positive
+rational numbers.
+
+Demonstrate that your procedure works by defining
+
+\beginlisp
+(define (mem r)
+  (cond ((equal? r (a-positive-rational)) r)
+        (else (fail))))
+\endlisp
+
+and then evaluate {\cf (mem (make-rat 3 7))}.  Hint: you might consider
+using {\cf a-natural-number} and {\cf a-rational-to}.  This
+hint leads to an inneficient solution.  You might try to construct a more
+efficient one.
+
+\paragraph{Problem 7}
+
+For a given rational number, $n/d$, how many times will your implementation
+of {\cf (a-rational)} return a value before reaching $n/d$?
+
+Even if the rational numbers are enumerated more intelligently, 
+{\cf a-rational-approximation} is very inefficient.
+If we can assume that the number to be approximated lies within a given
+interval, then we can find a much more intelligent way to
+find a good approximation.  The divide-and-conquer method approximates $n$
+by repeatedly splitting its initial
+\{0,1\} interval until $n$ is within one that is {\cf small-enuf?}.  {\cf
+split} returns an ambiguous subinterval.
+
+\beginlisp
+(define make-interval cons)
+\null
+(define start car)
+\null
+(define end cdr)
+\endlisp
+
+\beginlisp
+(define (midpoint int)
+  (*rat (make-rat 1 2)
+        (+rat (start int) (end int))))
+\null
+(define (approx n)
+  (define (loop int)
+    (cond ((not (in? n int)) (fail))
+          ((small-enuf? int) (midpoint int))
+          (else (loop (split int)))))
+  (cond ((< n 0) 'error)
+        ((> n 1) 'error)
+        (else (loop (make-interval (make-rat 0 1) (make-rat 1 1))))))
+\endlisp
+
+\beginlisp
+(define (in? n int)
+  (cond ((< n (rat->number (start int))) false)
+        ((> n (rat->number (end int))) false)
+        (else true)))
+\null
+(define (small-enuf? int)
+  (let ((b (rat->number (start int)))
+        (e (rat->number (end int))))
+    (< (- e b) 0.001)))
+\endlisp
+
+\paragraph{Problem 3}
+
+Implement {\cf split} to be a procedure that takes an interval and
+nondeterministically returns either the first half subinterval or the
+second half subinterval.  If you implement {\cf split} correctly will
+be able to use {\cf approx} to quickly find rational approximations to
+numbers.  Show your approximations to a half-dozen interesting
+numbers.  Approximately how many times will {\cf split} need to be
+called, in the worst case?  What parameter of your computation does
+this depend on?

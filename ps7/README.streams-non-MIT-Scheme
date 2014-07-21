@@ -1,0 +1,58 @@
+
+README.streams-non-MIT-Scheme
+
+
+This file contains implementations of the STREAM data abstraction for non-MIT
+Scheme implementations.  Since CONS-STREAM must be a special form, it is
+defined to be a MACRO rather than a PROCEDURE.
+
+
+In PCScheme:
+------------
+
+Congratulations.  You are using a Politically Correct Scheme.  This means that
+you already have the STREAM data abstraction built in.  In fact, it is built in
+not as a DELAYed CONS pair but as funky VECTOR objects, so if you pull the
+anti-social stunt of violating the abstraction barrier by trying things like (CAR
+stream) rather than (HEAD stream) you will have to explain yourself to the
+PCScheme Dean (the debugger).  You just can't get much more politically correct
+than that!
+
+
+In all Politically Incorrect non-MIT Schemes (i.e., all but PCScheme):
+---------------------------------------------------------------------
+
+(define the-empty-stream '())
+(define empty-stream?  null?)
+
+(define head car)
+(define tail (lambda (stream) (force (cdr stream))))
+
+... and in addition... [read on]
+
+
+In MacScheme:
+-------------
+
+(macro cons-stream
+  (lambda (instance)   ; instance ::= (CONS-STREAM e d)
+    (let ((e (cadr  instance))
+          (d (caddr instance)))
+      ;; (CONS-STREAM e d) --> (CONS e (DELAY d))
+     `(CONS ,e (DELAY ,d)))))
+
+
+In PseudoScheme:
+---------------
+
+(define-macro (cons-stream e d)
+  ;; (CONS-STREAM e d) --> (CONS e (DELAY d))
+ `(CONS ,e (DELAY ,d)))
+
+
+In Yale's T Scheme:
+------------------
+
+(define-syntax (cons-stream e d)
+  ;; (CONS-STREAM e d) --> (CONS e (DELAY d))
+ `(CONS ,e (DELAY ,d)))

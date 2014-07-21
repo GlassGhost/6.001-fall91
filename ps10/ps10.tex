@@ -1,0 +1,493 @@
+\input ../6001mac
+
+\def\fbox#1{%
+  \vtop{\vbox{\hrule%
+              \hbox{\vrule\kern3pt%
+                    \vtop{\vbox{\kern3pt#1}\kern3pt}%
+                    \kern3pt\vrule}}%
+        \hrule}}
+
+\begin{document}
+
+\psetheader{Fall Semester, 1991}{Problem Set 10}
+
+\medskip
+
+\begin{flushleft}
+Issued: November 26, 1991 \\
+\smallskip
+Tutorial preparation for: Week of December 2 \\
+{\bf REQUIRED discussion activity in recitation on WEDNESDAY, December 4}\\
+Writeup due on Friday, December 6, in recitation \\
+\end{flushleft}
+
+\begin{flushleft}
+Reading (attached):
+\begin{tightlist}
+
+\item first page of the RSA patent
+\item ``The Models are Broken'' by Allen Newell
+\item ``The Software Patent Crisis,'' by Brian Kahin
+\end{tightlist}
+\end{flushleft}
+
+\fbox{
+This problem set is very different, both in form and in content, from
+the previous things we have asked you to do this semester.  Because of
+the Thanksgiving vacation, and because this is the end of the semester
+when other subjects tend to assign lots of work, there is no
+programming assignment this week.  However, there is a {\bf required}
+activity scheduled for recitation on Wednesday, December 4.  This is a
+``role-playing'' discussion concerning software property rights.  In
+order to prepare for this, you will need to read the papers attached
+to this problem set in advance.  Discussion groups and roles will be
+assigned in tutorial on December 3 and 4.  You must get your assigned
+role before Wednesday so that you can prepare.  After the discussion
+you will need to write up a short summary to turn in on Friday.  You
+must attend Wednesday's recitation in order to get any credit for this
+problem set.}
+
+\medskip
+
+\fbox{
+There are no homework assignments covering the material presented in
+lectures on December 3, 5, 10, and 12, on parallelism and constraints.
+However, this material {\em will} be covered on the final.  Attending
+lectures and recitations, and studying the lecture handouts, should be
+adequate preparation for the final.  Also, the material covered on
+this problem set and in lecture November 26---intellectual property
+protection of software---will be covered on the final.}
+
+\section{Part 1:  Software and intellectual property protection}
+
+You might think that a beginning Computer Science subject like 6.001
+should focus only on purely ``technical'' issues of computers,
+systems, and languages.  But if you go on at all to work in this
+field, you will also need to confront situations where new technology
+raises social and ethical issues; and in teaching 6.001 we would like
+help prepare you for this.  Often these situations can be extremely
+``sticky'' both legally and ethically---new technology raises issues
+at such a rate that our social and legal framework has not yet
+developed the laws and precedents that would provide agreed upon
+patterns of conduct.  There is rarely one ``right way'' to resolve
+such a sticky situation, and reaching a resolution can require
+patience, creativity, and moral courage.
+
+The intellectual property protection status of software---to what
+extent software technology, programs, and algorithms can be protected
+by patents and copyrights---has been an increasing source of disputes
+over the past 10 years, and indications are that things are getting
+worse.  These issues will directly affect you if you go on to be a
+programmer.  For example, you may have read about Lotus Development
+Corporation's, successful ``look and feel'' copyright suit last year,
+in which it forced two other spreadsheet products off the market.  A
+key developer for one of these products was a recent MIT
+undergraduate.  You may also have heard about MIT's current
+disagreement with ATT over whether the X Window System infringes an
+ATT patent.  And this problem set asks you to consider a hypothetical
+but possible situation in which you yourself could be involved in a
+patent dispute over material that you studied earlier this semester in
+6.001.
+
+In lecture on November 26, you heard Randy Davis present an overview
+of software protection laws.  Here are some of the main points:
+
+\begin{itemize}
+
+\item
+Copyright law and patent law are rather different, in a distinction that goes
+back to the Constitution: ``The Congress shall have the power \ldots To
+promote the Progress of Science and the useful Arts, by securing for limited
+Times to authors and inventors the exclusive Right to their respective
+Writings and Discoveries.''
+
+Copyright law was designed to protect the artistic expression of an
+individual (``Writings''), while patent law covers specific inventions
+(``Discoveries'').  Copyright lasts for the life of the creator plus
+50 years (75 years if a corporation holds the copyright), while
+patents last for 17 years.
+
+Copyright covers the expression but not the underlying idea, while
+patents cover the reduction to practice of an idea.  Note that in
+neither case is an ``idea'' protectible.
+
+In general, patent is much more restrictive than copyright.  For
+example, you can infringe a patent if you make an invention that is
+``the same as'' the patented one, even if you had never seen or heard
+of the original.  But you can infringe a copyright only if you
+actually had access to the original and produced something
+substantially similar.
+
+\item
+The basis for legal protection for software is extremely complex.
+Software is covered by both patents and copyrights (as well as by laws
+covering trade secrets), often with no clear way to determine which
+form of protection should apply in any particular case.
+
+\item	Programs have been covered by copyright since the law was updated in
+1976.  It was widely believed until 1981 that software could not be
+patented, but an important case in that year opened the door to
+patenting software.
+
+\item	Some recent copyright cases (Whelan, 1986; Lotus, 1990) have extended
+copyright protection beyond the literal code to include some of the
+higher level abstractions (like overall system structure and the user
+interface).  One recent case (Computer Associates, 1991) pointed out
+fundamental technical difficulties in the Whelan case analysis.
+
+\item	Software patents were granted at the rate of about 30 a year during
+the 1970's, about 200 per year during the early 1980's, and about 600
+per year recently.  Some of these are filed primarily for defensive
+purposes.
+
+\item There is widespread, intense disagreement over what to do about the
+current situation.  Some people think things are OK: software is just
+like any other new technology, and if we just wait long enough, there
+will be sufficient legal precedents to establish a stable framework.
+Other people think that software---being both an expression of an idea
+and a mechanism for implementing the idea---is different enough from
+other forms of inventions that Congress should change the laws for
+protecting software, for example, to vastly limit, or even prohibit
+the possibility of granting patents for software and algorithms.
+Still others seek to find some way of providing shorter term
+protection for inventors, in order to encourage invention and the
+creation of new software companies, while allowing for the continuing
+spread of new concepts.
+
+\end{itemize}
+
+The attached paper, ``The Models are Broken,'' by Alan Newell (one of
+the country's most distinguished computer scientists) discusses some
+of the complexities of applying the traditional patent law framework
+to algorithms.  The paper ``The Software Patent Crisis'' by Brian
+Kahin of Harvard Law School discusses some of the effects of software
+patents.
+
+\section{Part 2:  MIT's patent on the RSA cryptography system}
+
+You may be surprised to learn that you have already encountered a
+patented method this semester in 6.001.  Although you could easily
+implement this method as a computer program (and have done so), you
+are legally prohibited from developing a communication system that
+incorporates this method, and letting others use it, unless you obtain
+a license from the company that ``owns'' the method.  This is the
+method of RSA encryption, which you studied in problem set 2.
+Included inthis problem set is a copy of the first page of the patent,
+so you can see what patents look like.  The entire patent is about 20
+pages and gives a detailed description of the RSA method.
+
+This problem set asks you to consider a hypothetical situation in
+which an MIT undergraduate infringes the RSA patent, and the
+consequences that might result.  First, we'll present some background
+on RSA.  It is a complex story, raising issues of national security,
+patents that involve software, and university licensing of technology;
+and parts of the story are still being played out.
+
+As discussed in problem set 2, RSA is an example of a {\it public-key
+cryptography} system.  That is, the system makes it possible for
+anyone to {\it en}crypt a message, while only the intended recipient
+can {\it de}crypt the message.  If you want people to be able to send
+you secure messages, you advertize a public encryption key.  Anyone,
+who intercepts the messages will be unable to decode them, since this
+requires knowing the corresponding decryption key, which you keep
+secret.\footnote{In problem set 2, you played around with cracking
+such systems.  But that was possible only because we used very small
+keys.} The possibility of a public-key system was (as far as is
+known\footnote{The reason for the parenthetical remark is that the
+National Security Agency has (unofficially) implied that these
+techniques were known within the intelligence community, long before
+Diffie and Hellman and RSA, but no evidence to support this has ever
+been produced .}) first realized by Whit Diffie and Marty Hellman at
+Stanford University and described in a paper published in
+1976.\footnote{W. Diffie and M. Hellman, "New directions in
+cryptography" {\it IEEE Transactions on Information Theory}, IT-22:6,
+1976, pp 644--654.} This paper presented the basic idea of public-key
+cryptography, along with an implementation based on a mathematical
+problem known as the ``knapsack problem''---writing a large integer as
+the sum of multiples of a fixed set of integers.
+
+Ron Rivest, Adi Shamir, and Len Adelman, all professors at the MIT
+Laboratory for Computer Science, learned about Diffie and Hellman's
+work, and, in the spring of 1977, devised the RSA method as simple,
+but effective alternative to the Diffie-Hellman knapsack technique.
+RSA, as you recall, is based on the observation that one can do fast
+exponentiation $s^e$ modulo an integer $n$, and can quickly obtain
+$e$th roots (by further exponentiation) when $n$ is the product of two
+known primes.
+
+In the fall of 1977, Stanford, based on Diffie and Hellman's work,
+applied for a patent on communication systems that use public-key
+cryptography; MIT applied for a patent on communication systems that
+use RSA, based on the work of Rivest, Shamir, and Adelman.
+
+While the patents were pending, the National Security Agency became
+concerned about ``civilian'' scientists getting increasingly
+interested in cryptography.  Many people think this is because the NSA
+was afraid that this would make it easy for people to send messages
+that can not be decoded by the NSA.\footnote{Even today, it is {\it
+illegal} to send cryptographic software outside the country.  For
+example, the {\tt crypt} program used to encrypt passwords on UNIX
+cannot be exported without a special license from the US Government.}
+For whatever the reason, the NSA put pressure on MIT to classify the
+RSA work, or at least to give NSA the right to review and censor
+further papers in this area.  MIT refused to comply with either
+request.\footnote{NSA has since instituted a procedure whereby authors
+can voluntarily submit papers for review by NSA for possible national
+security implications.}
+
+The patents were finally granted in 1983, and thus, according to US
+law, are in force until the year 2000.  Rivest, Shamir, Adelman and
+others, formed a company called RSA Data Security, and MIT licensed
+the RSA patent to this company.\footnote{The actual details of the
+original license and its various revisions are confidential.  Part of
+the terms involve royalty payments and stock.  MIT now owns about 1\%
+of stock in RSA Data Security.} The MIT license is an {\it exclusive
+license}, which means that MIT has agreed not to license this to
+anyone else; so anyone wanting to use the RSA method before the year
+2000 must deal with this one company.\footnote{The only exception is
+that RSA must be made available at no cost ``for government
+purposes.''  This was a condition of the National Science Foundation
+contract to MIT, which funded the RSA work.}
+
+At about the same time, Stanford licensed the Diffie-Hellman patent,
+also exclusively, to a company called Cylink.  Cylink/Stanford accused
+RSA/MIT of patent infringement, saying that the RSA method, as an
+implementation of a public-key cryptosystem, infringed the
+Diffie-Hellman patent, which they claimed covered essentially any
+public-key system.  Rather than go to court, the parties agreed to
+join forces, and formed a third company called Public Key Partners
+(PKP), to hold both the Stanford and MIT patents for RSA Data Security
+and Cylink, which would continue to work on their individual products.
+MIT and Stanford then renegotiated their licenses exclusively to PKP.
+
+Over the past few years, RSA Data Security has developed a line of
+cryptographic products that use the RSA method, and has marketed these
+to a wide range of companies, both as stand-alone products and as
+packages that companies can include in their own systems.\footnote{For
+example, Digital Equipment Corporation has developed a network
+authentication system that is like Project Athena's Kerberos, but
+which uses encryption software supplied by RSA Data Security to obtain
+higher levels of security.} They have also been promoting a standard
+for digital certificates that would support a national system of
+privacy-enhanced electronic mail over the Internet, with certificates
+are authorized by RSA or its licensees.\footnote{You might wonder why
+anyone needs a standard here, since the whole idea of public-key
+encryption is that you can publish your personal key and then people
+can send you messages as they please.  But suppose that the public
+keys are stored in some data file; someone might substitute their
+public key for yours and intercept mail intended for you.  To prevent
+this, you use a {\it certificate}---a kind of key that is ``digitally
+signed'' by some authorized person in a way that cannot be forged.
+(This kind of non-forgeable ``digital signature'' is also implemented
+using the RSA algorithm.)  The idea of combining a key and a digital
+signature to form a certificate was invented by Loren Kohnfelder in an
+MIT Bachelor's Thesis in 1978.}
+
+Currently, the National Institute for Standards and Technology (NIST)
+has been evaluating proposals for a national standard in public-key
+cryptography, and came out last August favor of a method called DSS,
+which was developed by the National Security Agency.  RSA Data
+Security has been lobbying (before the House of Representatives
+Subcommittee on Technology and Competitiveness) for the US to adopt
+the RSA certification system instead, charging that DSS is technically
+flawed, and has been designed specifically so that the NSA will be
+able to crack the code.  Other people have been protesting against the
+adoption of RSA on the grounds that no such standard should be the
+exclusive property of a single company.\footnote{This would not be the
+first time that a proprietary technology has been made into a public
+standard.  The requirement for making the standard public is that the
+company must agree to make ``reasonable'' licenses available to any
+interested party.  It is not clear, however, whether ``reasonable
+licenses'' include licensing the technology free for noncommerical
+use.}
+
+People who wish to use the RSA method without actually buying the
+software developed by RSA Data Security, must get a license from
+Public Key Partners, which actually holds the RSA patent.  PKP has
+been threatening (and suing) people who develop ``unauthorized''
+implementations of RSA or similar algorithms for public use, either
+commercially or noncommercially.\footnote{PKP claims that the MIT
+patent covers any public-key system that uses exponentiation.}
+
+Here, for example, is a letter sent last spring via electronic mail to
+a person named Mark Riordan at Michigan State University, followed by
+a letter to MSU. Riordan had announced the availability of a public
+domain ``privacy enhanced mail system'' for use in sending messages
+over the Internet:
+
+
+{\small
+\begin{verbatim}
+                                May 16, 1991
+Dear Mr. Riordan,
+
+We refer to your posting to pem-dev@tis.com of May 16, 1991:
+
+> Announcing the initial release of "rpem", a mostly public domain
+> Privacy Enhanced Mail program incorporating a public key encryption system
+
+>  The public key encryption algorithm used in rpem is Rabin's:
+>  ciphertext = plaintext^2 mod pq (p, q are primes). The public
+>  component of the key is pq, and the private component is p and q.
+>  Rabin's algorithm is probably slower (on decryption) and less 
+>  aesthetically pleasing than RSA, for instance, but it's in the
+>  public domain.  Also, unlike RSA, breaking Rabin's scheme is provably
+>  as hard as factoring a product of two primes.
+
+        The Massachusetts Institute of Technology and the Board of
+Trustees of the Leland Stanford Junior University have granted Public
+Key Partners exclusive sublicensing rights to the following patents
+registered in the United States, and all of their corresponding
+foreign patents:
+
+        Cryptographic Apparatus and Method
+        ("Diffie-Hellman") .......................... No. 4,200,770
+
+        Public Key Cryptographic Apparatus
+        and Method ("Hellman-Merkle") ............... No. 4,218,582
+
+        Cryptographic Communications System and
+        Method ("RSA") .............................. No. 4,405,829
+
+        Exponential Cryptographic Apparatus
+        and Method ("Hellman-Pohlig") ............... No. 4,424,414
+
+        These patents cover most known methods of practicing the art
+of public-key cryptography, including the system commonly known as
+"Rabin," which is NOT, contrary to your claim, public domain, and is
+covered by at least two of the patents listed above.
+
+        WE HEREBY PLACE YOU AND ALL USERS OF YOUR IMPLEMENTATION OF
+PUBLIC KEY, ON NOTICE THAT THEY ARE INFRINGING ON THESE PATENTS AND WE
+RESERVE ALL OF OUR RIGHTS AND REMEDIES AT LAW.
+
+                                Yours,
+                                Public Key Partners
+
+                                Robert B. Fougner, Esq.
+                                Director of Licensing
+\end{verbatim}
+}
+
+This is the kind of letter that many companies send to people they
+claim are infringing their patents.  In general, the US patent system
+requires the patent holder to pursue patent infringers, or else risk
+losing the patent rights.\footnote{Riordan's announcement (quoted in
+the letter) about the Rabin method being provably as hard a factoring
+is slightly misleading, because the method he uses is actually not as
+secure as RSA.  The so-called {\it chosen-message attack}, whereby you
+trick your opponent into sending messages of {\it your} choice, can be
+used to break the Rabin method, but (so far as anyone knows) not RSA.
+For many purposes, though, the Riordan's system might provide adequate
+security.  Notice PKP's claim that the RSA patent covers the Rabin
+method of public-key encryption, despite this qualitative difference
+from RSA.}
+
+
+\section{Part 3:  A hypothetical scenario}
+
+Now that you have some background on RSA, we'd like you to consider
+the following imaginary story.  The assignment for this problem set
+will ask you to place yourself in the role of one of the characters.
+
+Alyssa P. Hacker is an MIT senior who took 6.001 in the spring of her
+freshman year, where she learned about RSA.  She was so impressed with
+the idea that she designed a ``secure message system'' that uses RSA.
+Given a message and a public encryption key ($n$ and $e$, as in
+problem set 2) the program encrypts the message, which can then be
+transmitted over the network.  The recipient uses the program,
+together with the associated private decryption key to decrypt the
+message.  Alyssa's program can also generate public and private keys
+keys, so that people can generate and advertise their own public
+keys.\footnote{Notice that Alyssa's system doesn't include any kind of
+certification process.  She wasn't interested in providing that high a
+level of security.}
+
+Over summer vacation after freshman year, Alyssa got a job helping her
+old high school set up its computer lab.  The lab contained not only
+computers, but also modems that enable students and teachers to send
+messages, files, and programs, both to other schools in the state, and
+via national networks and bulletin boards.  Alyssa included her system
+as one of the programs for people in the school to use in sharing
+files and messages, both within the school and with other schools.
+
+Alyssa also uploaded her programs to a national bulletin board,
+together with a note saying that she and her high school were
+supplying it as ``shareware'' that could be freely redistributed.
+Over the past three years, these programs have come to be used widely
+over various networks, both educational networks and others.  Her high
+school guesses that about 100,000 students, teachers, and others
+around the country are using the program in sending mail and files,
+but they have really no way to know, since the program is widely
+redistributed.
+
+In September of this year, Alyssa got a call from the Superintendent
+of Schools for her high-school's district.  The school system has just
+received a letter from Public Key Partners, claiming that the
+widespread use of Alyssa's software is interfering with RSA Data
+Security's product line, and pointing out that Alyssa's system is
+infringing the PKP's patent.  The superintendent is very worried.
+There is no way for the school to keep track of who is using Alyssa's
+program, and there is absolutely no money in the school budget to pay
+for licensing fees.
+
+Alyssa is extremely upset.  As far as she is concerned, she just
+implemented a simple program she learned about in an MIT course, and
+let people use it for free.  She furious at her 6.001 instructor, who
+never mentioned anything in class about RSA being patented.  When she
+goes to complain to him, she finds that he left MIT two years ago.
+She contacts the Dean of Students, who refers her to the MIT
+Technology Licensing Office, which is in charge of all MIT licenses.
+They arrange a meeting, at which Alyssa, a member of the TLO, a
+representative from PKP, and the school superintendent will get
+together to try to resolve the problem.  The meeting will take place
+on Wednesday, December 4.
+
+
+\section{Part 4:  Preparing for tutorial and for Wednesday recitation}
+
+In Wednesday recitation, you will divided into groups of four and
+asked to ``role play'' the meeting.  Each of you will be take one of
+the roles: Alyssa (or ``Alex,'' if you prefer a male role), the school
+superintendent, the representative from MIT's TLO, and the
+representative from PKP.  The four of you will enact the meeting and
+attempt to come to some resolution.  You should try to remain in
+character and not act in ways that you would not act if you were
+actually in that position.  The goal of your group of four is to come
+to some sort of resolution, if possible.  The resolution may be a
+mutually agreeable one, but this might not be possible, and your
+meeting might end with the threat of a lawsuit among various of the
+parties.\footnote{Bear in mind that a lawsuit is not an easy way out.
+Preparing for a suit like this would cost at least \$50,000 in legal
+fees, and actually going to court could cost over \$1 million.}
+
+Your role for Wednesday will be assigned in tutorial, so that you will
+have time to think through your position and to prepare the points you
+want to make.
+
+In tutorial itself, you should be prepared to discuss the situation,
+in a preliminary way, from the point of view of all four participants
+in the meeting.  Why is this a tough situation? What might each
+participant want from the meeting?  What kinds of solutions would he
+or she find unacceptable?  How would you initially approach the other
+parties?  What might you expect them to want or do?  How would you
+respond to each of the approaches that they might take?
+
+
+\section{Part 5:  To write up and hand in on Friday}
+
+Write up a brief summary of your enacted meeting (two pages
+typewritten, at most).  List which students were in your group and who
+played which role.  List the two or three most important points made
+by each participant.  Describe what the resolution was.  Also say
+whether you (in your role) are satisfied or not with the outcome of
+the meeting.  If not, what might you have done differently either at
+or before the meeting in order to produce a different
+outcome?\footnote{Developing a new format for a 6.001 problem set is a
+lot of work, and this one, especially, required a lot of background
+research. I want to thank John Preston, Ron Rivest, and Caroline
+Whitbeck for their advice and their information.---H.A.}
+
+
+
+\end{document}

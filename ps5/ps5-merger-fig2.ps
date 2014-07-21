@@ -1,0 +1,294 @@
+%!postscript
+%%Creator: Illustrate Version 425.0
+%%CreationDate: 8/12/91 11:08:55
+%%Pages: 1
+%%BoundingBox: 169.14331 313.59686 442.88504 478.45984
+%%EndComments
+1 setlinecap 1 setlinejoin
+72 2540 div dup scale
+5967 11063 translate
+
+
+%% PostScript TeXFont Support for Illustrate
+
+/texfonts 128 array def
+/currenttexfont 0 def
+/currentfontdpi 0 def
+/currentrotation 0 def
+/currentbx 0 def
+/currentby 0 def
+
+/deftexfont
+ { /newfont 129 array def
+   newfont exch 128 exch put
+   texfonts exch newfont put } def
+
+/settexrotation
+ { /currentrotation exch def } def
+
+/settexfont
+ { texfonts exch get dup /currenttexfont exch def
+   128 get /currentfontdpi exch def } def
+
+/deftexchar
+ { /chardata exch def
+   /y-offset exch def
+   /x-offset exch def
+   true
+   1 0 0 1 x-offset y-offset 6 array astore
+   chardata
+   6 array astore /char exch def
+   texfonts exch get exch char put } def
+
+/texshow
+ { /currentby exch def
+   /currentbx exch def
+   texshowinternal } def
+
+/texshowx
+ { /currentbx exch def
+   texshowinternal } def
+
+/texshowy
+ { /currentby exch def
+   texshowinternal } def
+
+/texshowinternal
+ { gsave
+   currentbx currentby translate
+   2540 currentfontdpi div dup scale
+   currentrotation rotate
+   {texshowchar} forall
+   grestore } def
+
+/texshowchar
+   { currenttexfont exch get aload pop imagemask 0 translate } def
+
+/texrule
+ { gsave
+   translate
+   currentrotation rotate
+   /height exch def
+   /width exch def
+   newpath
+    0 0 moveto
+    width 0 rlineto
+    0 height rlineto
+    width neg 0 rlineto
+    closepath
+    fill
+   grestore } def
+
+0 300 deftexfont
+109 0 35 32 18 -1 1 {{<FF8FF1FFFF8FF1FF1E03C0781E03C0781E03C0781E03C0781E03C0781E03C0781E03C0781E03C0781E03C0781E03C0781E03C0781E03C0781F03E0781F87B0F0FEFF9FF0FE3E07C0>}} deftexchar
+97 0 21 18 18 -2 1 {{<1F1F003FBF8078FCC0F07CC0F03CC0F03CC0703C00783C003C3C000F3C0001FC00003C00003C00303C00783C007878003FF0001FC000>}} deftexchar
+115 0 16 13 18 -1 1 {{<CFC0FFE0F830E018E018C018C03801F81FF03FE07FC0FE00E030C030C07060F03FF01FB0>}} deftexchar
+116 0 16 12 25 -1 1 {{<07800FE01E603C303C303C303C303C303C303C003C003C003C003C003C003C00FFE0FFE03C001C001C000C000C000C000C00>}} deftexchar
+101 0 18 15 18 -1 1 {{<07F00FF81E1C3C0E78067800F000F000F000FFFEFFFEF01E781E781C383C1C380FF003E0>}} deftexchar
+114 0 16 15 18 0 1 {{<FFC0FFC01E001E001E001E001E001E001E001E001E001E001E001F0C1F1E1F9EFEFEFE7C>}} deftexchar
+12 0 23 20 29 -1 1 {{<7FBFF07FBFF01E07801E07801E07801E07801E07801E07801E07801E07801E07801E07801E07801E07801E07801E0780FFFF80FFFF801E00001E00001E00001E00001E00001E03001E07800F078007830003FF0000FC00>}} deftexchar
+108 0 12 10 29 -1 1 {{<FFC0FFC01E001E001E001E001E001E001E001E001E001E001E001E001E001E001E001E001E001E001E001E001E001E001E001E001E00FE00FE00>}} deftexchar
+0 settexfont
+(master\014le) 93.0 5581.0 texshow
+
+
+%% PostScript Illustrate Graphics Support
+
+/linewidth1 26 def
+
+/fill-box
+  { /cy exch def /cx exch def
+    /halfwidth width 2 div def
+    /halfheight height 2 div def
+    newpath
+     cx halfwidth sub cy halfheight sub moveto
+     0 height rlineto
+     width 0 rlineto
+     0 height neg rlineto
+     closepath
+     fill } def
+
+/point
+  { brushtype circlebrush eq
+     { halfthickness newpath 0 360 arc fill }
+     { brushtype squarebrush eq
+        { /height brushthickness def
+	  /width brushthickness def
+	  fill-box }
+        { brushtype verticalbrush eq
+           { /height brushthickness def
+	     /width linewidth1 def
+	     fill-box }
+           { /height linewidth1 def
+	     /width brushthickness def
+	     fill-box }
+	   ifelse }
+        ifelse }
+     ifelse } def
+
+/circlebrush     1 def
+/squarebrush     2 def
+/verticalbrush   3 def
+/horizontalbrush 4 def
+
+/setbrushtype { /brushtype exch def } def
+
+/setbrushthickness
+  { dup /brushthickness exch def
+    dup 2 div /halfthickness exch def
+    setlinewidth } def
+
+/setbrush { setbrushthickness setbrushtype } def
+
+/simpleline { newpath moveto lineto stroke } def
+
+/complexline
+  { /y2 exch def /x2 exch def
+    /y1 exch def /x1 exch def
+    /halfwidth width 2 div def
+    /halfheight height 2 div def
+
+    % Make line go left to right.
+    x1 x2 gt { /x2 x1 /x1 x2 def def /y2 y1 /y1 y2 def def } if
+
+    y1 y2 gt
+     { % Line does down.
+       newpath
+        x1 halfwidth add y1 halfheight add moveto
+	x2 halfwidth add y2 halfheight add lineto
+	0 height neg rlineto
+        width neg 0 rlineto
+        x1 halfwidth sub y1 halfheight sub lineto
+        0 height rlineto
+        closepath
+	fill }
+     { % Line goes up.
+       newpath
+        x1 halfwidth sub y1 halfheight add moveto
+	x2 halfwidth sub y2 halfheight add lineto
+	width 0 rlineto
+	0 height neg rlineto
+	x1 halfwidth add y1 halfheight sub lineto
+	width neg 0 rlineto
+	closepath
+	fill }
+     ifelse } def
+
+/drawline
+  { brushthickness linewidth1 eq
+    % For thin lines ignore brushtype.
+    { simpleline }
+    { brushtype circlebrush eq
+       { % Draw a line in the circular brush.
+         simpleline }
+       { brushtype squarebrush eq
+          { % Draw a line in the square brush.
+            /width brushthickness def
+	    /height brushthickness def
+	    complexline }
+          { brushtype verticalbrush eq
+             { % Draw a line in the vertical brush.
+	       /width linewidth1 def
+	       /height brushthickness def
+	       complexline }
+             { % Draw a line in the horizontal brush.
+	       /width brushthickness def
+	       /height linewidth1 def
+	       complexline }
+             ifelse }
+          ifelse }
+       ifelse }
+    ifelse } def
+
+/to
+ { /save-y exch def
+   /save-x exch def
+   save-x save-y drawline
+   save-x save-y } def
+
+/triangle
+ { newpath moveto lineto lineto closepath fill } def
+
+circlebrush 26 setbrush
+752 5405 752 4452 drawline
+752 4135 910 4452 593 4452 triangle
+circlebrush 26 setbrush
+434 4135 434 3500 to 1069 3500 to 1069 4135 to 434 4135 drawline
+1387 3818 2022 3818 drawline
+752 3818 752 2865 drawline
+1069 4135 1069 3500 to 1704 3500 to 1704 4135 to 1069 4135 drawline
+2336 3818 2020 3976 2020 3660 triangle
+circlebrush 26 setbrush
+2340 4135 2340 3500 to 2975 3500 to 2975 4135 to 2340 4135 drawline
+2657 3818 2657 2865 drawline
+3262 3814 5199 3814 drawline
+2975 4135 2975 3500 to 3610 3500 to 3610 4135 to 2975 4135 drawline
+5502 3818 5186 3976 5186 3660 triangle
+circlebrush 26 setbrush
+6459 3814 8035 3814 drawline
+5823 3818 5823 2865 drawline
+5506 4135 5506 3500 to 6141 3500 to 6141 4135 to 5506 4135 drawline
+6141 4135 6141 3500 to 6776 3500 to 6776 4135 to 6141 4135 drawline
+8369 3818 8053 3976 8053 3660 triangle
+circlebrush 26 setbrush
+8690 3818 8690 2865 drawline
+9642 4136 9007 3501 drawline
+9008 4135 9008 3500 to 9643 3500 to 9643 4135 to 9008 4135 drawline
+8373 4135 8373 3500 to 9008 3500 to 9008 4135 to 8373 4135 drawline
+(master\014le) -5.0 2124.0 texshow
+752 2548 910 2865 593 2865 triangle
+circlebrush 26 setbrush
+3603 2554 1698 2554 drawline
+1698 2554 1698 14 drawline
+98 0 23 20 29 -1 1 {{<187C001DFF001F87801E01C01E01E01E00E01E00F01E00F01E00F01E00F01E00F01E00F01E00E01E01E01E01C01F87801FFF001E7E001E00001E00001E00001E00001E00001E00001E00001E00001E0000FE0000FE0000>}} deftexchar
+105 0 12 10 29 -1 1 {{<FFC0FFC01E001E001E001E001E001E001E001E001E001E001E001E001E001E00FE00FE000000000000000000000000001C003E003E003E001C00>}} deftexchar
+103 0 21 17 26 -2 9 {{<07E0001FF800781E00700E00E00700E00700E00700700F003FFE003FFC007FF0007000006000006FC0003FE000387000703800F03C00F03C00F03C00F03C00F03C00703800387B801FFF800FCF80>}} deftexchar
+45 0 14 11 4 0 -6 {{<FFE0FFE0FFE0FFE0>}} deftexchar
+113 0 22 20 26 -1 9 {{<003FF0003FF000078000078000078000078000078000078003E7800FF7801E1F803C0F80780780780780F00780F00780F00780F00780F00780F007807807807807803C0F801E1F800FFB8003E180>}} deftexchar
+117 0 23 20 18 -1 1 {{<03E7F007F7F00E1F801E0F801E07801E07801E07801E07801E07801E07801E07801E07801E07801E07801E07801E0780FE3F80FE3F80>}} deftexchar
+(big-aqua) 1986.0 1443.0 texshow
+121 0 22 20 26 0 9 {{<3E00007F00007B00007B800031C00000C00000C00000F80000600000F00000F00000F00001F80001F80003FC0003CC0007CE000786000786000F87000F03001F03801E01803E01C0FF87F0FF87F0>}} deftexchar
+112 0 23 20 26 -1 9 {{<FFC000FFC0001E00001E00001E00001E00001E00001E00001E7C001FFF001F87801E03C01E01E01E01E01E00F01E00F01E00F01E00F01E00F01E00F01E01E01E01E01E03C01F8780FFFF00FE7E00>}} deftexchar
+100 0 23 20 29 -1 1 {{<07E7F00FF7F01E1F80380F80780780700780F00780F00780F00780F00780F00780F007807007807807803807801E0F800FFF8003E780000780000780000780000780000780000780000780000780000780007F80007F80>}} deftexchar
+(t) 2206.0 1848.0 texshow
+(yp) 2333.0 texshowx
+(ed) 2723.0 texshowx
+2657 2548 2815 2865 2498 2865 triangle
+circlebrush 26 setbrush
+3603 14 3603 2554 drawline
+110 0 23 20 18 -1 1 {{<FF9FF0FF9FF01E07801E07801E07801E07801E07801E07801E07801E07801E07801E07801E07801E07801F07801F8700FEFF00FE3C00>}} deftexchar
+99 0 18 15 18 -1 1 {{<07F00FF81E1C3C0E78067800F000F000F000F000F000F000780078183C3C1E3C0FF803F0>}} deftexchar
+(quince) 5357.0 1441.0 texshow
+4873 2554 4873 14 drawline
+6778 2554 4873 2554 drawline
+(t) 5381.0 1848.0 texshow
+(yp) 5508.0 texshowx
+(ed) 5898.0 texshowx
+5832 2548 5990 2865 5673 2865 triangle
+circlebrush 26 setbrush
+9635 2554 7730 2554 drawline
+7730 2554 7730 14 drawline
+6778 14 6778 2554 drawline
+104 0 23 20 29 -1 1 {{<FF9FF0FF9FF01E07801E07801E07801E07801E07801E07801E07801E07801E07801E07801E07801E07801F07801F87001EFF001E3C001E00001E00001E00001E00001E00001E00001E00001E00001E0000FE0000FE0000>}} deftexchar
+111 0 21 18 18 -1 1 {{<03F0000FFC001E1E00380700780780700380F003C0F003C0F003C0F003C0F003C0F003C07003807807803807001E1E000FFC0003F000>}} deftexchar
+(helios) 8255.0 1423.0 texshow
+(t) 8238.0 1848.0 texshow
+(yp) 8365.0 texshowx
+(ed) 8755.0 texshowx
+8689 2548 8847 2865 8530 2865 triangle
+8690 2548 8848 2865 8531 2865 triangle
+circlebrush 26 setbrush
+9635 14 9635 2554 drawline
+(\014le) 2418.0 595.0 texshow
+(p) 1933.0 1006.0 texshow
+(ersonnel) 2138.0 texshowx
+(p) 5108.0 texshowx
+(ersonnel) 5313.0 texshowx
+(\014le) 5593.0 595.0 texshow
+(p) 7965.0 1006.0 texshow
+(ersonnel) 8170.0 texshowx
+(\014le) 8450.0 595.0 texshow
+1698 14 3603 14 drawline
+4873 14 6778 14 drawline
+7730 14 9635 14 drawline
+showpage

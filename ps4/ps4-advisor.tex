@@ -1,0 +1,647 @@
+\input ../6001mac
+% pages 1 and 2 are generated on a Mac
+\markright{6.001, Fall Semester, 1991---Problem set 4}
+\setcounter{page}{3}
+\begin{document}
+
+\section{1. Building a freshman advisor}
+
+In this assignment, you'll give the Institute a hand by building a
+program that can give academic advice to incoming freshmen.  We've
+sketched a simple framework that you can complete and extend to a more
+elaborate program.  This is an open-ended assignment, involving a lot
+of list data-structure manipulations.  To avoid getting bogged down,
+it is important that you read through and think about the entire
+assignment and plan your programming in advance.
+
+Our prototype advisor engages in simple conversations with incoming
+freshmen.  In the following sample conversation, the user's responses
+are preceded by the prompt symbol {\tt **}, and the program's
+responses are shown in upper case.  In order to simplify the program,
+we omit punctuation and represent the responses of both the user and
+the machine as lists.  We also write course numbers using colons
+instead of periods (e.g., we write 18:03 instead of
+18.03).\footnote{If we used a period, Scheme would treat course
+numbers as decimal numbers rather than as ordinary symbols.  We don't
+want to use numbers here.  For instance, we wouldn't want Scheme to
+``simplify'' 18.100 to 18.1.}
+
+\beginlisp
+(see-advisor 'hal)
+(HI HAL)
+(I AM YOUR FRESHMAN ADVISOR)
+(WHAT ARE YOUR PLANS FOR THE SEMESTER)
+**(I am going to take 8:01 and 18:01)
+(STUDENTS REALLY ENJOY 8:01)
+**(I was also thinking of taking 6:001)
+(6:001 IS TOO MUCH WORK FOR FRESHMEN -- WAIT UNTIL NEXT YEAR)
+**(Ok)
+(HAVE YOU CONSIDERED A CONTEXT SUBJECT)
+**(No, but I was thinking about taking a freshman seminar)
+(I HEAR THAT SNORKELING IN BOSTON HARBOR IS A REALLY EXCITING SEMINAR)
+**(I think that sounds like fun)
+(I AM GLAD TO HEAR THAT YOU THINK THAT SOUNDS LIKE FUN)
+**(i was thinking of doing a double major in
+   applied partying and business administration)
+(APPLIED PARTYING IS FASCINATING AND YOU CAN MAKE A LIVING DOING IT
+   IF BUSINESS ADMINISTRATION DOES NOT WORK OUT)
+**(Goodbye)
+(GOODBYE HAL)
+(HAVE A GOOD SEMESTER!)
+\endlisp
+
+Although the advisor program seems to understand and reply to the
+user's remarks, the program in fact ignores most of what the user
+types and has only three rudimentary methods for generating responses.
+One method, illustrated above by the exchange
+
+\beginlisp
+**(I think that sounds like fun)
+(I AM GLAD TO HEAR THAT YOU THINK THAT SOUNDS LIKE FUN)
+\endlisp
+
+\noindent
+takes the user's reply, changes some first-person words like ``I,''
+``me,'' ``my,'' and ``am'' to the corresponding second-person words,
+and appends the transformed response to a phrase such as ``I am glad
+to hear that'' or ``you say.''  The second method used by the program
+is to completely ignore what the user types and simply respond with
+some sort of general remark like ``Have you considered a context
+subject,'' or ``MIT has a lot of interesting departments.''
+
+The third reply-generating method is the most complicated and
+flexible.  It uses a {\em pattern matcher}, similar to the one
+presented in lecture on October 3.  We'll discuss the details of this
+method below.
+
+\subsection{Overview of the advisor program}
+
+Every interactive program, including the Scheme interpreter itself,
+has a distinguished procedure called a {\em driver loop}.  A driver
+loop repeatedly accepts input, processes that input, and produces the
+output.  {\tt See-advisor}, the top-level procedure of our program,
+first greets the user, then asks an initial question and starts the
+driver loop.
+
+\beginlisp
+(define (see-advisor name)
+  (print (list 'hi name))
+  (print '(i am your freshman advisor))
+  (print '(what are your plans for the semester))
+  (advisor-driver-loop name))
+\null
+(define (advisor-driver-loop name)
+  (newline)
+  (princ '**)
+  (let ((user-response (read-from-keyboard)))
+    (cond ((equal? user-response '(goodbye))
+           (print (list 'goodbye name))
+           (print '(have a good semester!)))
+          (else (print (reply-to user-response))
+                (advisor-driver-loop name)))))
+\endlisp
+
+The driver loop prints a prompt and reads the user's
+response.\footnote{This uses the Scheme primitive {\tt
+read-from-keyboard}, which waits for you to type an expression and
+press \key{EXECUTE}.  The value returned by {\tt read-from-keyboard}
+is the expression you type.  If you type the special symbol {\tt
+abort} (not the \key{ABORT} key) the program will quit and return to
+the read-eval-print loop.} If the user says {\tt (goodbye)}, then the
+program terminates.  Otherwise, it calls the following {\tt reply-to}
+procedure to generate a reply according to one of the methods
+described above.
+
+\beginlisp
+(define (reply-to input)
+  (cond ((generate-match-response conventional-wisdom input))
+        ((with-odds 1 2) (reflect-input input))
+        (else (pick-random general-advice))))
+\endlisp
+
+{\tt Reply-to} is implemented as a Lisp {\tt cond}, one {\tt cond}
+clause for each basic method for generating a reply.  The clause uses
+a feature of {\tt cond} that we haven't seen before---if the {\tt
+cond} clause consists of a single expression, this serves as both
+``predicate'' and ``consequent''.  Namely, the clause is evaluated and, if
+the value is not false, this is returned as the result of the {\tt
+cond}.  If the value is false, the interpreter proceeds to the next
+clause.  So the first clauses above works because we have
+arranged for {\tt generate-match-response} to return false if it has no
+response to generate.
+
+Notice that the order of the clauses in the {\tt cond} determines the
+priority of the advisor's response-generating methods.  As we have
+arranged it above, the advisor will reply with a matcher-triggered
+response whenever there is one.  Failing that, the advisor will either
+(with odds 1 in 2) repeat the input after transforming first person to
+second person ({\tt reflect-input}) or give an arbitrary piece of
+general advice.  The predicate
+
+\beginlisp
+(define (with-odds n1 n2) (< (random n2) n1))
+\endlisp
+
+\noindent
+returns true with designated odds ({\tt n1} in {\tt n2}).
+When you modify the advisor program, feel free to change the priorities
+of the various methods.
+
+\subsection{Disbursing random general advice}
+
+The advisor's easiest advice method is to simply pick some remark at
+random from a list of general advice such as:
+
+\beginlisp
+(define general-advice
+  '((make sure to take some humanities)
+    (have you considered a context subject)
+    (mit has a lot of interesting departments)
+    (make sure to get time to explore the Boston area)
+    (how about a freshman seminar)))
+\endlisp
+
+\noindent
+{\tt Pick-random} is a useful little procedure that picks an item at
+random from a list:
+
+\beginlisp
+(define (pick-random list) (list-ref list (random (length list))))
+\endlisp
+
+\subsection{Changing person}
+
+To change ``I'' to ``you'', ``am'' to ``are'', and so on, the advisor
+uses a procedure {\tt sublist}, which takes an input {\tt list} and
+another list of {\tt replacements}, which is a list of pairs.
+
+\beginlisp
+(define (change-person phrase)
+  (sublist '((i you) (me you) (am are) (my your))
+           phrase))
+\endlisp
+
+\noindent
+For each item in the {\tt list} (note the use of {\tt mapcar}), {\tt
+sublist} substitutes for that item, using the {\tt replacements}.  The
+{\tt substitute} procedure scans down the {\tt replacement} list,
+looking for a pair whose {\tt car} is the same as the {\tt item}.  If
+so, it returns the {\tt cadr} of that pair.  If the list of {\tt
+replacements} runs out, {\tt substitute} returns the {\tt item}
+itself.
+
+\beginlisp
+(define (sublist replacements list)
+  (mapcar (lambda (elt) (substitute replacements elt))
+          list))
+\null
+(define (substitute replacements item)
+  (cond ((null? replacements) item)
+        ((eq? item (caar replacements)) (cadar replacements))
+        (else (substitute (cdr replacements) item))))
+\endlisp
+
+The advisor's response method, then, uses {\tt change-person}, gluing
+a random innocuous beginning phrase (which may be empty) onto the
+result of the replacement:
+
+\beginlisp
+(define (reflect-input input)
+  (append (pick-random beginnings) (change-person input)))
+\null
+(define beginnings
+  '((you say)
+    (why do you say)
+    (i am glad to hear that)
+    ()))
+\endlisp
+
+\pagebreak
+
+\subsection{Using a pattern matcher}
+
+Consider this interaction from our sample dialogue with the advisor:
+
+\beginlisp
+**(i was thinking of doing a double major in
+   applied partying and business administration)
+(APPLIED PARTYING IS FASCINATING AND YOU CAN MAKE A LIVING DOING IT
+   IF BUSINESS ADMINISTRATION DOES NOT WORK OUT)
+\endlisp
+
+The advisor has identified that the input matches a {\em pattern}:
+
+\beginlisp
+(<stuff> double major in <stuff> and <stuff>)
+\endlisp
+
+\noindent
+and used the match results to fill in an appropriate {\em skeleton}
+for the response.
+
+The pattern matcher used here is similar to the one presented in
+lecture on October 3, but there are some important differences.  The
+most important difference is that the dummy variables in the pattern
+can match an arbitrary number (zero or more) consecutive terms.  Here
+is the pattern and skeleton for the example above:
+
+\beginlisp
+pattern:  (* double major in * and *)
+skeleton: ((: 1) is fascinating and you can make a living doing it
+            if (: 2) does not work out)
+\endlisp
+
+When the pattern is matched against some test expression, it will
+return either {\tt failed} if there is no match, or else a list of
+lists---one for each star in the pattern---saying what sequence the
+star matched against.  For example,
+
+\beginlisp
+==> (match '(* double major in * and *)
+           '(i was thinking of doing a double major in
+             applied partying and business administration))
+\null
+ ((i was thinking of doing a)
+  (applied partying)
+  (business administration))
+\endlisp
+
+The first list in the match result contains what the first star in the
+pattern matched against, and so on.  When the skeleton is {\em
+instantiated} against some match result, the value {\tt (: 0)} will be
+filled in with the first list, {\tt (: 1)} with the second list, and
+so on:
+
+\beginlisp
+==>(instantiate
+    '((: 1) is fascinating and you can make
+       a living doing it if (: 2) does not work out)
+    '((i was thinking of doing a)
+      (applied partying)
+      (business administration)))
+\null
+(applied partying is fascinating and you can make a living
+  doing it if business administration does not work out)
+\endlisp
+
+Here is the advisor's table of conventional wisdom.  The table is
+represented as a list of {\em entries}, each consisting of a pattern
+and a skeleton:
+
+\beginlisp
+(define (make-entry pattern skeleton)
+  (list pattern skeleton))
+\null
+(define (entry-pattern  x) (car  x))
+(define (entry-skeleton x) (cadr x))
+\endlisp
+
+\pagebreak
+
+\beginlisp
+(define conventional-wisdom
+  (list
+   (make-entry
+    '(* 6:001 *)
+    '(6:001 is too much work for freshmen -- wait until next year))
+   (make-entry
+    '(* 8:01 *)
+    '(students really enjoy 8:01))
+   (make-entry
+    '(* seminar *)
+    '(i hear that snorkeling in Boston Harbor is a really 
+      exciting seminar))
+   (make-entry
+    '(* want to take * next *)
+    '(too bad -- (: 1) is not offered next (: 2)))
+   (make-entry
+    '(* double major in * and *)
+    '((: 1) is fascinating and you can make a living
+       doing it if (: 2) does not work out))
+   (make-entry
+    '(* double major *)
+    '(doing a double major is a lot of work))
+   ))
+\endlisp
+
+Here is the procedure that matches an input against some item in the
+table, and returns the instantiated skeleton (or returns {\tt failed}).
+
+\beginlisp
+(define (match-to-table-entry entry input)
+  (let ((match-result (match (entry-pattern entry) input)))
+    (if (good-match? match-result)
+        (instantiate (entry-skeleton entry) match-result)
+        'failed)))
+\endlisp
+
+Note from the table that some inputs might match more than one
+pattern.  When this happens the advisor generates all possible
+responses and then picks one at random to print.  We'll leave you to
+implement the procedure {\tt generate-match-response} that
+accomplishes this (problem 3.4 below).
+
+\subsection{Details of the matcher}
+
+The top level call to the pattern matcher is simpler than the one
+presented in lecture because the matcher does not worry about
+embedded lists (i.e., it recurses on the {\tt cdr} of the pattern and
+the expression, but not on the {\tt car}---compare with the code in
+the lecture handout).  More importantly, there is no way to name
+the pattern variables.\footnote{A pattern matcher that handles
+arbitrary length named segments---which may appear in the pattern more
+than once---is a real challenge to implement.  Ask your recitation
+instructor or TA.} This matcher simply takes a pattern and an
+expression and returns the list showing how the stars (arbitrary
+segments) matched.
+
+\beginlisp
+(define (match pat exp)
+  (cond ((and (null? pat) (null? exp)) '())
+        ((null? pat) 'failed)
+        ((start-arbitrary-segment? pat) (match-arbitrary-segment pat exp))
+        ((null? exp) 'failed)
+        ((equal? (car pat) (car exp)) (match (cdr pat) (cdr exp)))
+        (else 'failed)))
+\endlisp
+
+The only tricky part of the matcher is in the handling of arbitrary
+segments.  There are three possibilities for a match when the pattern
+begins with a star.
+
+\noindent
+1. If the rest of the pattern successfully matches the rest of the
+expression, then the star should match the first item in the
+expression.  For example, given the pattern {\tt (* is a quail)} and
+the expression {\tt (dan is a quail)} then there will be a match with
+the star matching {\tt (dan)}.
+
+\noindent
+2. If the entire pattern (recursively) successfully matches the rest of
+the expression, then we take whatever the star matched against in that
+recursive match and {\em extend} it by adjoining the first item in the
+expression; e.g., given the pattern {\tt (* is a quail)} and the
+expression {\tt (handsome dan is a quail)}, we recursively match the
+pattern against the rest of the expression (with the star matching
+against {\tt (dan)}) and then extend this to by adjoining {\tt
+handsome} to produce a successful match with star matching {\tt
+(handsome dan)}.  This step happens recursively, and it will keep
+recursing as long as the successive rests of the expression match.
+For example, the same pattern will match {\tt (strong noble handsome
+dan is a quail)}.
+
+\noindent
+3. If the rest of the pattern matches the entire expression, then we
+produce a match with the initial star matching the empty list.
+
+Note that possibility 3 is the only one available if the expression is
+empty.
+
+This algorithm is implemented by the following procedures:
+
+\beginlisp
+(define (match-arbitrary-segment pat exp)
+  (if (null? exp)
+      (match-rest-pat pat exp)
+      (let ((first-try (match-rest-rest pat exp)))
+        (if (good-match? first-try)
+            first-try
+            (let ((second-try (match-rest-exp pat exp)))
+              (if (good-match? second-try)
+                  second-try
+                  (match-rest-pat pat exp)))))))
+\null
+(define (match-rest-pat pat exp)
+  (let ((result (match (cdr pat) exp)))
+    (if (good-match? result)
+        (extend-dictionary '() result)
+        'failed)))
+\null
+(define (match-rest-exp pat exp)
+  (let ((result (match pat (cdr exp))))
+    (if (good-match? result)
+        (extend-first-entry (car exp) result)
+        'failed)))
+\null
+(define (match-rest-rest pat exp)
+  (let ((result (match (cdr pat) (cdr exp))))
+    (if (good-match? result)
+        (extend-dictionary (list (car exp)) result)
+        'failed)))
+\endlisp
+
+There are also some simple utilities:
+
+\beginlisp
+(define (good-match? m)
+  (not (eq? m 'failed)))
+\null
+(define (start-arbitrary-segment? pat)
+  (eq? (car pat) '*))
+\null
+(define (extend-dictionary new-entry matches)
+  (cons  new-entry  matches))
+\null
+(define (extend-first-entry extension matches)
+  (cons (cons extension (car matches)) (cdr matches)))
+\endlisp
+
+
+The matcher is a rather complex example of recursion (not as complex
+as the one shown in lecture, however).  You might not feel that you
+could design such a program from scratch, but you ought to understand
+how this one works.
+
+A complete listing of the advisor program, almost all of which was
+described above, is attached to this problem set.
+
+
+\section{2. Tutorial exercises}
+
+Study section 1 of this handout and prepare the following exercises
+for tutorial.
+
+\paragraph{Exercise 2.1:}
+Finger exercises.  Suppose we define {\tt a } and
+{\tt b} to be the following two lists:
+
+\beginlisp
+(define a (list 1 2))
+(define b (list 3 4 5))
+\endlisp
+
+\noindent
+What result is printed by the interpreter in response to evaluating
+each of the following expressions:
+
+\beginlisp
+(cons a b)
+(append a b)
+(list a b)
+\endlisp
+
+\paragraph{Exercise 2.2:}
+More finger exercises.  Suppose we have
+defined {\tt a b c} and {\tt d} to have the values {\tt 4 3 2} and
+{\tt 1} respectively.  What would the interpreter print in response to
+evaluating each of the following expressions?
+
+\beginlisp
+(list a 'b c 'd)
+(list (list a) (list b))
+(cons (list d) 'b)
+(cadr '((a b) (c d) (a d) (b c)))
+(cdr '(a))
+(atom? (caddr '(Welcome to MIT)))
+(memq 'sleep '(where getting enough sleep))
+(memq 'time '((requires good) (management of time)))
+\endlisp
+
+
+\paragraph{Exercise 2.3:}
+The procedure {\tt filter} is a higher-order procedure that takes two
+inputs---a predicate and a list.  It returns the list of those
+elements in the original list for which the predicate is true.  For
+example,
+
+\beginlisp
+(filter odd? '(1 2 3 4 5 6 7 8)) $\Rightarrow$ (1 3 5 7)
+\endlisp
+Give a definition of {\tt filter}.
+
+\paragraph{Exercise 2.4}
+
+In our matcher, notice that ``matching an arbitrary segment'' does
+not produce a well-defined result if the pattern contains two
+consecutive stars.  For example, if we match
+
+\beginlisp
+pattern:    (* * is a *)
+expression: (strong tall george is a bush))
+\endlisp
+
+\noindent
+it would be ``correct'' to get any of the following:
+
+\beginlisp
+(() (strong tall george) (bush))
+((strong) (tall george) (bush))
+((strong tall) (george) (bush))
+((strong tall george) () (bush))
+\endlisp
+
+Which result does the matcher actually produce?  How would you modify
+the matcher so that it produced one of the other results?
+
+
+\section{3. To do in lab}
+
+Begin by loading the code for problem set 4.  And try it out by typing
+
+\beginlisp
+(see-advisor '<your name>)
+\endlisp
+
+In this version you load, the advisor will never attempt to use the
+pattern matcher (because the procedure {\tt generate-match-response}
+has been ``dummied out'' to always return {\tt false}),  so all you
+will obtain are the simple ``you-me'' transformations and the random
+general advice.
+
+
+\paragraph{Problem 3.1}
+Expand the advisor's store of conventional wisdom and general advice.
+You may find it helpful to consult MIT course evaluation guides---or
+fabricate your own helpful advice.  Try out the modified program.  You
+needn't turn in anything for this problem.
+
+\paragraph{Problem 3.2}
+The pattern matcher loaded with the code is missing the {\tt
+instantiate} procedure.  Write this.  {\tt Instantiate} should
+take a skeleton and a list of lists (showing what the pattern stars
+were bound to) and return the skeleton with the appropriate pieces
+spliced in.  Here are some examples:
+
+\beginlisp
+==>(instantiate
+    '((: 1) was (: 0) on the (: 2))
+    '((shining) (the sun) (sea)))
+(the sun was shining on the sea)
+\null
+==>(instantiate
+    '(my (: 0) my (: 0) my (: 1) a (: 0))
+    '((horse) (kingdom for)))
+(my horse my horse my kingdom for a horse)
+\endlisp
+
+\noindent
+Turn in a listing of your procedure together with some examples
+demonstrating that it works.
+
+\paragraph{Problem 3.3}
+Now that {\tt instantiate} is working, you should be able to call the
+procedure {\tt match-to-table-entry} (already loaded with the code and
+described in Section 1 above).  Use {\tt make-entry} to define a
+sample pattern-skeleton entry and demonstrate that {\tt
+match-to-table-entry} works with a few sample inputs.
+
+\paragraph{Problem 3.4}
+Now implement the procedure {\tt generate-match-response}.
+Replace the dummy definition (loaded with the file) by your new
+definition.  Your procedure should take a table of entries and an
+input, match the input to each table entry, and pick at random one of
+the non-failure responses.  If there are no non-failure responses, the
+procedure should return {\tt false}.  If you think about this
+procedure carefully, you will realize that is a simple combination of
+{\tt mapcar}, {\tt filter} (see exercise 2.3 above), and {\tt
+pick-random}.  You'll have to define {\tt filter} if you want to use
+it.  Turn in a listing of the procedure(s) you write here together
+with some test examples to show that they work.  You can use the
+advisor's predefined {\tt conventional-wisdom} table for your tests.
+
+\paragraph{Problem 3.5}
+Now the entire advisor program should work, including the responses
+generated by the matcher.  Try this to check.  Add some new
+entries to the {\tt conventional-wisdom} table.  Turn in a few of the
+new entries you added, together with some sample responses showing the
+advisor in operation.
+
+\paragraph{Problem 3.6}
+Design and implement some other improvement that extends the advisor`s
+capabilities. 
+
+For example, the program currently uses no information about the
+student.  Instead of calling {\tt see-advisor} with only the student's
+name, you might invent a student-record data structure that the
+advisor could consult.  Alternatively, you might give the advisor some
+sort of ``memory'' or ``context'' so that future responses are affected by
+past responses.  As a third idea, you might use the matcher in a
+different way.  For example, instead of just instantiating a skeleton
+with a match result, you could pass the result to a procedure for more
+flexible treatment.
+
+Implement your modification.  You need not feel constrained to follow
+the suggestions given above.  You needn't even feel constrained to
+implement a freshman advisor.  Perhaps there are other members of the
+MIT community who you think could be usefully replaced by simple
+programs: a dean or two, the Registrar, your 6.001 lecturer, \ldots\,.
+
+Turn in descriptions (in English) of the main procedures and data
+structures used, together with listings of the procedures and a sample
+dialogue showing the program in operation.
+
+{\em This problem is not meant to be a major project.  Don't feel that you
+have to do something elaborate.}
+
+\subsection{Contest}
+
+Prizes will be awarded for the cleverest programs and dialogues turned
+in for this problem set.
+
+\pagebreak
+
+CODE TO BE APPENDED
+
+
+\end{document}
+

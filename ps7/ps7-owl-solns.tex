@@ -1,0 +1,734 @@
+\input ../6001mac                               % On ALTDORF.AI.MIT.EDU  % -*- Mode:TeX -*-
+
+\begin{document}                                
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\psetheader{Fall Semester, 1991}{Problem Set 7 Solutions}       % D.~E.~Troxel
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\medskip
+
+%==============================================================================
+\section{Part 1: Tutorial Problems}
+
+No written solutions are distributed for tutorial problems. 
+
+%==============================================================================
+\section{Part 2: The Amazing Owl}
+
+%------------------------------------------------------------------------------
+\paragraph{Problem 1}
+
+(a) The streams as given look like:
+
+\beginlisp
+(define ones     (cons-stream 1 ones))
+(define integers (cons-stream 1 (add-streams ones integers)))
+\null
+==> (print-stream ones)
+([STREAM] 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 \ldots
+\null
+==> (print-stream integers)
+([STREAM] 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 \ldots
+\endlisp
+
+(b) We can define {\cf mystery-stream} as prescribed by making a table for
+computing successive elements. We start with 1 followed by 1. Now, to compute
+the next element, we add the previous element (which is, by definition, the sum
+of all preceding elements) to the sum of all the elements before that. But, by
+construction, the sum of all the elements before that {\it is\/} the previous
+element, so we just add the previous element to itself.
+
+\beginlisp
+mystery:        1 1 2 4 \ldots 2$^{i-2}$ \ldots
+sum previous:   0 1 2 4 \ldots 2$^{i-2}$ \ldots
+             + -------------------
+next:           1 2 4 8 \ldots 2 $\cdot$ 2$^{i-2}$ = 2$^{i-2+1}$ \ldots
+\endlisp
+
+Similar reasoning leads to the realization that the third and following
+elements are all computed by just adding the {\cf mystery-stream} to itself
+starting from the second element. In short:
+
+\beginlisp
+(define mystery-stream
+ (cons-stream 1
+              (cons-stream 1
+                           (add-streams (tail mystery-stream)
+                                        (tail mystery-stream)))))
+\null
+==> (print-stream mystery-stream)
+([STREAM] 1 1 2 4 8 16 32 64 128 256 512 1024 2048 4096 8192 16384 \ldots
+\endlisp
+
+As the above tabulation suggests, the tail of {\cf mystery-stream} is just the
+stream of successive powers of 2, starting with $2^0 = 1$.
+
+If we were allowed to use an auxilary generating procedure (which the problem
+statement forbade), the following would have been equivalent:
+
+\beginlisp
+(define mystery-stream (cons-stream 1 (sum-stream mystery-stream)))
+\null
+(define (sum-stream st)
+  (define sum (cons-stream (head st)                     ; ``previous'' elt = sum prev
+                           (add-streams sum (tail st)))) ; always add prev to current
+  sum)
+\endlisp
+
+or, more directly,
+
+\beginlisp
+(define (mystery-maker n)
+  (cons-stream n (mystery-maker (+ n n))))   ; or (* 2 n) since n+n = 2n
+\null
+(define mystery-stream (cons-stream 1 (mystery-maker 1)))
+\endlisp
+
+(c) We use {\cf random}, which was also used in problem set~2. Since {\cf
+random} accepts only an upper bound, it is wasteful to do the obvious hack of
+generating an integer less than our given upper bound then discard and try
+again if this happens to be less than our lower bound. Instead, we consider the
+width of the interval between L and U and generate random numbers within this
+width. By adding these randomly generated width numbers to the lower bound, we
+always produce a random integer within the desired interval. The code:
+
+\beginlisp
+(define (noise-stream lower-bound upper-bound)
+  (let ((difference (- upper-bound lower-bound)))
+    (cons-stream (+ lower-bound (random difference))
+                 (noise-stream lower-bound upper-bound))))
+\null
+==> (print-stream (noise-stream 3 8))
+([STREAM] 3 6 3 4 4 4 7 4 3 4 7 6 4 5 6 6 4 3 7 7 3 5 4 7 5 \ldots
+\endlisp
+
+Notice that, as desired, our lower bound appears in the noise stream, but our
+upper bound never does.
+
+%------------------------------------------------------------------------------
+\paragraph{Problem 2}
+
+The most obvious solution is to define a new procedure {\cf sub-streams} to
+subtract two streams, but we can avoid this by simply scaling the subtracted
+stream by $-1$ then using {\cf add-streams}.  The code which subtracts from
+each element its predecessor in the stream (with the conventional 0 starting
+entry) is:
+
+\beginlisp
+(define (diff st)
+  (add-streams (tail st)
+               (scale-stream -1 st)))
+\null
+==> (print-stream (diff integers))
+([STREAM] 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 \ldots
+\null
+==> (print-stream (diff mystery-stream))
+([STREAM] 0 1 2 4 8 16 32 64 128 256 512 1024 2048 4096 8192 16384 \ldots
+\endlisp
+
+As expected, {\cf (diff mystery-stream)} yields the successive powers of 2.
+
+\newpage
+
+%------------------------------------------------------------------------------
+\paragraph{Problem 3}
+
+Averaging of successive values can be done by adding the successive values than
+dividing by 2, that is, scaling by $1/2$.
+
+\beginlisp
+(define (smooth stream)
+  (scale-stream 0.5 (add-streams stream (tail stream))))
+\null
+==> (print-stream (smooth integers))
+([STREAM] 1.5 2.5 3.5 4.5 5.5 6.5 7.5 8.5 9.5 10.5 11.5 12.5 13.5 \ldots
+\endlisp
+
+%------------------------------------------------------------------------------
+\paragraph{Problem 4}
+
+\mbox{} % new paragraph
+
+(a) One nice abstract way to achieve a repeated smoothing is to use the
+definition of {\cf repeated} from problem set~2 and from Quiz~1.
+
+\beginlisp
+(define (repeated f n)
+  (if (= n 0)
+      (lambda (z) z)
+      (compose f (repeated f (- n 1)))))
+\null
+(define (compose f g)
+  (lambda (x) (f (g x))))
+\null
+(define (smooth-n stream n)
+  ((repeated smooth n) stream))
+\null
+==> (print-stream (smooth-n integers 0))
+([STREAM] 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 \ldots
+==> (print-stream (smooth-n integers 1))
+([STREAM] 1.5 2.5 3.5 4.5 5.5 6.5 7.5 8.5 9.5 10.5 11.5 12.5 13.5 \ldots
+==> (print-stream (smooth-n integers 2))
+([STREAM] 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 \ldots
+==> (print-stream (smooth-n integers 3))
+([STREAM] 2.5 3.5 4.5 5.5 6.5 7.5 8.5 9.5 10.5 11.5 12.5 13.5 \ldots
+\endlisp
+
+Amusing hypothesis: (1) for even numbers of smoothing, say $2k$ we get the
+integers starting at $k+1$.  (2) for odd numbers of smoothing, say $2k+1$,
+we get the sum of the stream of 0.5 and the integers starting at $k+1$
+
+\beginlisp
+==> (print-stream (smooth-n integers 42))  ; 2*21
+([STREAM] 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 \ldots
+==> (print-stream (smooth-n integers 37))   ; 2*18 + 1
+([STREAM] 19.5 20.5 21.5 22.5 23.5 24.5 25.5 26.5 27.5 28.5 29.5 30.5 \ldots
+\endlisp
+
+\newpage
+
+(b) We chose to generate a signal with just a bit of noise.
+
+\beginlisp
+(define        4b-sig (car (make-test-signal 3)))
+(define smooth-4b-sig (smooth-n 4b-sig 4))
+(define   diff-4b-sig (diff     4b-sig))
+\null
+==> (print-stream 4b-sig)
+([STREAM] 0 2 0 1 2 0 1 0 1 2 1 0 2 2 2 2 2 0 1 1 1 0 2 2 0 2 0 2 0 0 2 0 1 2 2
+          1 0 2 2 1 2 2 2 0 1 1 1 1 1 0 2 2 0 0 2 1 1 0 1 2 0 2 1 0 2 1 1 2 0 1
+          0 0 0 1 2 1 2 0 0 1 2 1 4987.4673 4987.4673 4988.4673 4987.4673 \ldots
+\null
+==> (print-stream smooth-4b-sig)
+([STREAM] 0.875  1.0    1.0625 0.8125 0.5625 0.625  1.0    1.25   1.0625 1.0
+          1.4375 1.875  2.0    1.875  1.4375 0.9375 0.8125 0.875  0.8125 0.9375
+          1.3125 1.375  1.125  1.0    1.0    0.875  0.625  0.625  0.8125 0.875
+          1.125  1.5625 1.5625 1.125  1.0    1.375  1.625  1.625  1.75   1.8125
+          1.4375 0.9375 0.8125 0.9375 1.0    0.9375 0.8125 0.9375 1.3125 1.25
+          0.75   0.6875 1.0625 1.125  0.8125 0.6875 0.9375 1.125  1.125  1.125
+          1.0    0.9375 1.125  1.25   1.25   1.125  0.8125 0.5    0.25   0.125
+          0.375  0.9375 1.375  1.4375 1.125  0.625  0.5    0.9375 312.9667
+          1559.521 3429.3213 4676.0635 4987.8423 4987.78 4987.905 \ldots
+\null
+==> (print-stream diff-4b-sig)
+([STREAM]  2 -2  1  1 -2  1 -1  1  1 -1 -1  2  0  0  0  0 -2  1  0  0 -1  2  0
+          -2  2 -2  2 -2  0  2 -2  1  1  0 -1 -1  2  0 -1  1  0  0 -2  1  0  0
+           0  0 -1  2  0 -2  0  2 -1  0 -1  1  1 -2  2 -1 -1  2 -1  0  1 -2  1
+          -1  0  0  1  1 -1  1 -2  0  1  1 -1 4986.4673 0  1 -1 \ldots
+\null
+==> (print-stream (diff smooth-4b-sig))
+([STREAM] 0.125   0.0625 -0.25   -0.25    0.0625  0.375   0.25   -0.1875 -0.0625
+          0.4375  0.4375  0.125  -0.125  -0.4375 -0.5    -0.125   0.0625 -0.0625
+          0.125   0.375   0.0625 -0.25   -0.125   0.0    -0.125  -0.25    0.0
+          0.1875  0.0625  0.25    0.4375  0.0    -0.4375 -0.125   0.375   0.25
+          0.0     0.125   0.0625 -0.375  -0.5    -0.125   0.125   0.0625 -0.0625
+         -0.125   0.125   0.375  -0.0625 -0.5    -0.0625  0.375   0.0625 -0.3125
+         -0.125   0.25    0.1875  0.0     0.0    -0.125  -0.0625  0.1875  0.125
+          0.0    -0.125  -0.3125 -0.3125 -0.25   -0.125   0.25    0.5625  0.4375
+          0.0625 -0.3125 -0.5    -0.125   0.4375 312.0292 1246.5543 1869.8003
+          1246.7422  311.7788    -0.0625  0.125   0.4375  0.25 0.0 \ldots
+\null
+==> (print-stream (smooth-n diff-4b-sig 4))
+([STREAM] 0.125   0.0625 -0.25   -0.25    0.0625  0.375   0.25   -0.1875 -0.0625
+          0.4375  0.4375  0.125  -0.125  -0.4375 -0.5    -0.125   0.0625 -0.0625
+          0.125   0.375   0.0625 -0.25   -0.125   0.0    -0.125  -0.25    0.0
+          0.1875  0.0625  0.25    0.4375  0.0    -0.4375 -0.125   0.375   0.25
+          0.0     0.125   0.0625 -0.375  -0.5    -0.125   0.125   0.0625 -0.0625
+         -0.125   0.125   0.375  -0.0625 -0.5    -0.0625  0.375   0.0625 -0.3125
+         -0.125   0.25    0.1875  0.0     0.0    -0.125  -0.0625  0.1875  0.125
+          0.0    -0.125  -0.3125 -0.3125 -0.25   -0.125   0.25    0.5625  0.4375
+          0.0625 -0.3125 -0.5    -0.125   0.4375 312.0292 1246.5543 1869.8003
+          1246.7422  311.7788    -0.0625  0.125   0.4375  0.25 0.0 \ldots
+\endlisp
+
+The order of application of {\cf smooth} and {\cf diff} apparently doesn't
+matter.
+
+\newpage
+
+%------------------------------------------------------------------------------
+\paragraph{Problem 5}
+
+A straigthforward use of {\cf map} will do the trick\ldots
+
+\beginlisp
+(define (mark smooth-diff-stream mean dev)
+  (map (lambda (elt) (if (> (abs (- elt mean)) (* 3 dev))
+                         1
+                         0))
+       smooth-diff-stream))
+\null
+(define smooth-diff (smooth-n diff-4b-sig 4))
+\null
+==> (print-stream (mark smooth-diff mean dev))
+([STREAM] 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+          0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+          0 0 0 0 0 0 0 0 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+          0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 \ldots
+\endlisp
+
+The 1's are 75 elements into the stream and there are 5 of them.
+
+%------------------------------------------------------------------------------
+\paragraph{Problem 6}
+
+We can exploit our definition of {\cf smooth} by just multiplying the smoothed
+{\cf smooth-st} by the {\cf marked-st}, since multiplying by 0 will yield the
+desired 0 while multiplying the smoothed {\cf smooth-st} by 1 yields the
+desired averaged elt and successor.
+
+\beginlisp
+(define (combine-streams proc s1 s2)
+  (cond ((empty-stream? s1) s2)
+        ((empty-stream? s2) s1)
+        (else
+         (cons-stream (proc (head s1) (head s2))
+                      (combine-streams proc (tail s1) (tail s2))))))
+\null
+(define (mult-streams st1 st2)
+  (combine-streams  * st1 st2))
+\null
+(define (get-signal-strength marked-st smooth-st)
+  (mult-streams marked-st (smooth smooth-st)))
+\null
+==> (print-stream (mult-streams integers integers))   ; perfect squares
+([STREAM] 1 4 9 16 25 36 49 64 81 100 121 144 169 196 225 \ldots
+\null
+==> (define punt6 (get-signal-strength (mark integers 0 2)     ; punt first 6
+                                       (smooth-n integers 3))) ; 2.5...
+==> (print-stream punt6)
+([STREAM] 0 0 0 0 0 0 9 10 11 12 13 14 15 \ldots
+==> (define punt9 (get-signal-strength (mark integers 0 3)     ; punt first 9
+                                       (smooth-n integers 3))) ; 2.5...
+==> (print-stream punt9)
+([STREAM] 0 0 0 0 0 0 0 0 0 12 13 14 15 16 \ldots
+\endlisp
+
+Good.  We expected to punt the first 6 elts of {\cf punt6} since our mean was 0
+and deviation was 2 (so we look for $2\sigma = 6$) then returned the once-more
+smoothed (i.e., averaged smoothed value and its successor)
+thrice-smoothed integers, which we know will be the integers starting
+at 3 (i.e., $4 = 2 \times 2$ so start at $2+1$).  Thus, we punt 3--8 (first 6)
+and resume integers at 9. Similary, {\cf punt9} will punt the first 9 of the
+same stream.
+
+%------------------------------------------------------------------------------
+\paragraph{Problem 7}
+
+We use {\cf filter} to pass only those entries which are not 0 (notice that
+negative values {\it can\/} occur if our smoothed stream is decreasing in
+values. Neither {\cf integers} not {\cf mystery-stream} do, but in general a
+stream might.  We chose to group times and values by making a {\cf cons} pair.
+
+\beginlisp
+(define (dev-posns str)
+  (filter (lambda (x) (not (= (car x) 0)))
+          (combine-streams cons str integers)))
+\endlisp
+
+Since the stream produced by {\cf dev-posns} is a stream of compound data---
+specifically, one in which each element is a pair--- it would also be
+nice to define selectors to go along with the constructor.
+
+\beginlisp
+(define (posn-value devposnstr) (car devposnstr))
+(define (posn-time  devposnstr) (cdr devposnstr))
+\endlisp
+
+\beginlisp
+==> (print-stream (dev-posns punt6))
+([STREAM] (9 . 7) (10 . 8) (11 . 9) (12 . 10) (13 . 11) (14 . 12) \ldots
+\endlisp
+
+As expected.
+
+%------------------------------------------------------------------------------
+\paragraph{Problem 8}
+
+As you can see, our above abstractions paid off\ldots
+
+\beginlisp
+(define (measure-time-spread-and-signals l-str r-str)
+  (combine-streams (lambda (event1 event2)
+                     (list (- (posn-time event1)
+                              (posn-time event2))
+                           (posn-value event1)
+                           (posn-value event2)))
+                   l-str
+                   r-str))
+\endlisp
+
+Since the stream produced by this procedure is also a stream of compound
+data--- spec., one in which each element is a triple--- it would also be
+nice to define selectors to go along with this constructor too.
+
+\beginlisp
+(define  time-shift car)
+(define  left-value cadr)
+(define right-value caddr)
+\endlisp
+
+We can test this by checking the time spread of the deviation positions of {\cf
+punt6} and {\cf punt9}. We should see time deviations of -3 since {\cf punt6}
+anticipates {\cf punt9} by three time stamps. Also, the corresponding values
+should always be 3 higher for {\cf punt9} since it is essentially a three unit
+delayed version of {\cf punt6}. Let's see\ldots
+
+\beginlisp
+==> (print-stream (measure-time-spread-and-signals (dev-posns punt6) (dev-posns punt9)))
+([STREAM] (-3 9 12) (-3 10 13) (-3 11 14) (-3 12 15) (-3 13 16) \ldots
+\endlisp
+
+Roger dodger.
+
+%------------------------------------------------------------------------------
+\paragraph{Problem 9}
+
+First, we define our mean and deviation to be the same as was provided in the
+problem set code listing, just to be on the safe side.
+
+\beginlisp
+(define mean 0) ;the derivative of a bounded signal has zero average value
+(define dev 20) ;who knows what evil lurks....
+\endlisp
+
+Next, let's define something to process the signals by smoothing
+them, marking the differentiations, and finally hacking out the signal strength
+and time-stamping the deviation positions.
+
+\beginlisp
+(define (process-signal str smooth-factor)
+  (let ((smoothed-str (smooth-n str smooth-factor)))
+    (dev-posns (get-signal-strength (mark (diff smoothed-str) mean dev)
+                                    smoothed-str))))
+\endlisp
+
+Now we can do the simulation by applying {\cf compute-distance-and-angle} to
+each element (which is a triple!) of the stream produced by {\cf
+measure-time-spread-and-signals}.
+
+\beginlisp
+(define (simulate l-str r-str smooth-factor v b)
+  (map (lambda (spread-n-sigs) (compute-distance-and-angle ( time-shift spread-n-sigs)
+                                                           ( left-value spread-n-sigs)
+                                                           (right-value spread-n-sigs)
+                                                           v b))
+       (measure-time-spread-and-signals (process-signal l-str smooth-factor)
+                                        (process-signal r-str smooth-factor))))
+\endlisp
+
+Now lets try it out on (make-test-signal 2)
+
+\beginlisp
+(define       signals (make-test-signal 2))
+(define  left-signal  (car signals))
+(define right-signal  (cdr signals))
+\null
+==> (head (simulate left-signal right-signal 2 signal-velocity baseline))
+(70.13121 0.77539754)
+\endlisp
+
+Looks like mickey has a distance of about 70 (in unknown units).
+He is oriented at an angle of 0.775 radians or about 44.4 degrees.
+
+
+%------------------------------------------------------------------------------
+\paragraph{Problem 10}
+
+First, a recursive version (employs wishful thinking)
+
+\beginlisp
+(define (first-n str n)
+  (if (= n 0)
+      (cons 0 str)
+      (let ((pair (first-n (tail str) (-1+ n))))
+        (cons (+ (car pair) (head str))
+              (cdr pair)))))
+\endlisp
+
+And now an iterative version
+
+\beginlisp
+(define (first-n str n)
+  (define (iter str n acc)
+    (if (= n 0)
+        (cons acc str)
+        (iter (tail str) (-1+ n) (+ acc (head str)))))
+  (iter str n 0))
+\endlisp
+
+Now for a handy test\ldots
+
+\beginlisp
+==> (let ((first-100 (first-n integers 100)))
+      (cons (car first-100) (head (cdr first-100))))
+(5050 . 101)
+\endlisp
+
+\newpage
+
+%------------------------------------------------------------------------------
+\paragraph{Problem 11}
+
+(a) Here is a literal reading of the suggested approach.
+
+\beginlisp
+(define (set-up-sums st n)
+  (let ((start (first-n st n)))
+    (let ((sum   (car start))
+          (front (cdr start))
+          (back st))
+     (define running-sum
+       (cons-stream sum
+                    (add-streams running-sum
+                                 (add-streams front
+                                              (scale-stream -1 back)))))
+     running-sum)))
+\endlisp
+
+(b) We can now reduce {\cf set-up-squares} to a call to {\cf set-up-sums}.
+
+\beginlisp
+(define (set-up-squares st n)
+  (set-up-sums (map square st) n))
+\endlisp
+
+(c) Testing on our trusty integers\ldots
+
+\beginlisp
+==> (print-stream (set-up-sums integers 3))  ; should be multiples of 3:
+                                             ;  (n-1) + n + (n+1) = 3n
+([STREAM] 6 9 12 15 18 21 24 27 30 33 36 39 42 45 48 51 54 57 \ldots
+\null
+==> (print-stream (set-up-squares integers 2))
+([STREAM] 5 13 25 41 61 85 113 145 181 225 \ldots
+\endlisp
+
+%------------------------------------------------------------------------------
+\paragraph{Problem 12}
+
+The code
+
+\beginlisp
+(define (mean-st st n)
+  (map (lambda (x) (/ x n))
+       (set-up-sums st n)))
+\endlisp
+
+The test
+
+\beginlisp
+==> (print-stream (mean-st integers 3))  ; should coerce the 3n into n's
+([STREAM] 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 22 23 \ldots
+\endlisp
+
+Not surprisingly, this is the average of the first three (which is the second),
+the next three (the third) and so on. Integers are just nicely balanced that
+way.
+
+\newpage
+
+%------------------------------------------------------------------------------
+\paragraph{Problem 13}
+
+\mbox{} % end paragraph
+
+\beginlisp
+(define (dev-st st n)
+  (map (lambda (x) (sqrt (abs x)))
+       (add-streams (map (lambda (x) (/ x n))
+                         (set-up-squares st n))
+                    (scale-stream -1 (map square (mean-st st n))))))
+\endlisp
+
+For $n$ = 1, we subtract a square from itself yielding 0, whose sqrt is 0.
+
+For $n$ = 2, we average a number's square and the square of its increment then
+subtract their average squared. This is:
+
+\begin{eqnarray*}
+\sqrt{1/2(n^2 + (n+1)^2) - (1/2(n+n+1))^2} &=& \sqrt{n^2+n+1/2 - (n+1/2)^2} \\
+                                           &=& \sqrt{1/2 - 1/4}             \\
+                                           &=& \sqrt{1/4}                   \\
+                                           &=& 1/2
+\end{eqnarray*}
+
+For $n$ = 3, we average a numbers square with the square of its two closest neighbors
+then subtract their average (which is the center number) squared. This is:
+
+\begin{eqnarray*}
+\sqrt{1/3((n-1)^2 + n^2 + (n+1)^2) - (1/3((n-1)+n+(n+1)))^2} &=& \sqrt{(n^2+2/3 - n^2} \\
+                                                             &=& \sqrt{2/3}            \\
+                                                             &=& 0.8164966
+\end{eqnarray*}
+
+\beginlisp
+==> (print-stream (dev-st integers 1))
+([STREAM] 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 \ldots
+\null
+==> (print-stream (dev-st integers 2))
+([STREAM] 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 \ldots
+\null
+==> (print-stream (dev-st integers 3))
+([STREAM] 0.8164966 0.8164966 0.8164966 0.8164966 0.8164966 \ldots
+\endlisp
+
+The proof is in the pudding.
+
+%------------------------------------------------------------------------------
+\paragraph{Problem 14}
+
+To produce a list of three elements, we cons an element onto a two-element
+list.
+
+\beginlisp
+(define (glued-data st n)
+  (combine-streams CONS                              ;; **
+                   (nth-tail (round (/ n 2)) st)
+                   (combine-streams LIST             ;; **
+                                    (mean-st st n)
+                                    ( dev-st st n))))
+\endlisp
+
+Better define selectors when we define a constructor (else Captain Abstraction
+might reap his vengeance)!
+
+\beginlisp
+(define glue-val  car)
+(define glue-mean cadr)
+(define glue-dev  caddr)
+\endlisp
+
+\beginlisp
+==> (print-stream (glued-data integers 1))
+([STREAM] (1 1 0) (2 2 0) (3 3 0) (4 4 0) (5 5 0) \ldots
+\null
+==> (print-stream (glued-data integers 2))
+([STREAM] (2 3/2 0.5) (3 5/2 0.5) (4 7/2 0.5) (5 9/2 0.5) (6 11/2 0.5) \ldots
+\null
+==> (print-stream (glued-data integers 3))
+(3 2 0.8164966) (4 3 0.8164966) (5 4 0.8164966) (6 5 0.8164966) (7 6 0.8164966) \ldots
+\endlisp
+
+No surprises.
+
+%------------------------------------------------------------------------------
+\paragraph{Problem 15}
+
+\mbox{} % end paragraph
+
+\beginlisp
+(define (new-mark glued-str)
+  (map (lambda (elt)
+         (let ((val  (glue-val  elt))
+               (mean (glue-mean elt))
+               (dev  (glue-dev  elt)))
+           (if (> (abs (- val mean)) (* 3 dev))
+               1
+               0)))
+       glued-str))
+\endlisp
+
+\beginlisp
+==> (print-stream (new-mark (glued-data smooth-diff 45)))
+([STREAM] 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+          0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0
+          0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 \ldots
+\endlisp
+
+Here the 1's are 52 elements into the stream and there are only 3 of them (the
+first and last of the original 5 were smoothed out by taking the mean and
+deviation over an $n$-element wide range).
+
+%------------------------------------------------------------------------------
+\paragraph{Problem 16}
+
+Now for the new version of our simulator which is remarkably
+similar to the earlier version!
+
+(a) As before, let's define something to process the signals by smoothing them,
+marking the differentiations, and finally hacking out the signal strength and
+time-stamping the deviation positions.
+
+This time, though, we need to add {\cf run-length} as a new parameter since
+{\cf new-mark} processes the glued string and {\cf glued-str} needs the {\cf
+run-length} to calculate the mean and standard deviation by a running average.
+
+\beginlisp
+(define (new-process-signal str smooth-factor run-length)
+  (let ((smoothed-str (smooth-n str smooth-factor)))
+    (dev-posns (get-signal-strength (new-mark (glued-data (diff smoothed-str) run-length))
+                                    (nth-tail (round (/ run-length 2)) smoothed-str)))))
+\endlisp
+
+Now, as before, we can do the simulation by applying {\cf
+compute-distance-and-angle} to each element (which is a triple!) of the stream
+produced by {\cf measure-time-spread-and-signals}.
+
+\beginlisp
+(define (new-simulate l-str r-str smooth-factor v b run-length)
+  (map (lambda (spread-n-sigs) (compute-distance-and-angle ( time-shift spread-n-sigs)
+                                                           ( left-value spread-n-sigs)
+                                                           (right-value spread-n-sigs)
+                                                           v b))
+       (measure-time-spread-and-signals (new-process-signal l-str smooth-factor run-length)
+                                        (new-process-signal r-str smooth-factor run-length))))
+\endlisp
+
+(b) Now lets try it out
+
+\beginlisp
+==> (head (new-simulate left-signal right-signal 2 signal-velocity baseline 45))
+(70.05803 0.77539754)
+\endlisp
+
+Looks like mickey still has a distance of about 70 (in unknown units).
+He is still oriented at an angle of 0.775 radians or about 44.4 degrees.
+
+(c) Now for some multi-signal testing
+
+\beginlisp
+(define last-signals      (make-test-signal-multi 3))
+(define last-left-signal  (car last-signals))
+(define last-right-signal (cdr last-signals))
+\null
+(define final-simulation
+  (new-simulate last-left-signal last-right-signal 2 signal-velocity baseline 55))
+\null
+==> (print-stream final-simulation)
+([STREAM] (70.04085661064 .7753974966108)   ;; 45 degrees
+          (69.99764554181 .7753974966108)   ;; 45 degrees
+          (50.52200199431 .7753974966108)   ;; 45 degrees
+          (50.5014191151  .7753974966108)   ;; 45 degrees
+          (20.96721132096 .7075844367254)   ;; 40 degrees
+          (20.96669612222 .7075844367254)   ;; 40 degrees
+          \vdots
+          <infinite-loop>
+\endlisp
+
+These are the only significant events since {\cf make-test-signal-multi} passes
+{\cf d-theta-onset-values} as the {\cf d-theta-onset-list} argument to {\cf
+make-audio-signal-multi} and {\cf d-theta-onset-values} contains only three events. We
+see both the onset and offset of each event, so we detect a total of six
+interesting movements.
+
+Mickey seems to be getting closer and circling toward our right flank. He's
+walking softly into that sweet night.
+
+(d) In this simulation the value {\cf signal-velocity} was 1 and {\cf baseline}
+was 10. Moreover, the time difference between the ears was forced to be an
+integer. This combination of facts means that the time difference between the
+two ears was always either -2, -1, 0, 1, or 2. Thus there are only five possible
+perceived angles for the prey. With this low accuracy our simulated owl would
+find itself on a very strick diet\ldots ultra-ultra slim fast!
+
+The accuracy could be increased by making the velocity small relative to the
+baseline length. this is analogous to a higher rate of sampling for the ear
+signals.
+
+%==============================================================================
+
+\end{document}

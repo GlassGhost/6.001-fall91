@@ -1,0 +1,64 @@
+-*- Mode:Text -*-                PS9-GUIDE.TEXT
+
+
+		     MASSACHUSETTS INSTITUTE OF TECHNOLOGY
+	   Department of Electrical Engineering and Computer Science
+	   6.001---Structure and Interpretation of Computer Programs
+			      Fall Semester, 1991
+
+				 Problem Set 9
+
+		  --------------------------------------------
+		    A Reader's Guide to the PS9 Code Listing
+		  --------------------------------------------
+
+There is a ton o' code to accompany this problem set.  Most of it is derived in
+careful detail in the textbook.  We have made only a few modifications and
+extensions to the code in the book, so don't be overwhelmed by the sheer volume
+of this listing.  Following is a roadmap to what is in this massive handout, in
+the order in which it appears in this listing.
+
+
+-------------------------------------------------------------------------------
+PS9-GUIDE.TEXT -- This file.
+-------------------------------------------------------------------------------
+PS9-LOAD.SCM ---- The magic file which loads all this code in just the right
+                  order with just the right magic. This is the load file used
+                  on the Chipmunks and Athena. If you use a different Scheme
+                  environment, then use this file as a basis for your hacks.
+	          See PS9-PORTS.SCM for portability hacks. Also...
+
+ *****************************************************************************
+ ** NOTE THAT THIS PROBLEM SET CODE CANNOT BE EXECUTED ON ENVIRONMENTALLY   **
+ ** IMPOVERISHED SCHEME SYSTEMS, SUCH AS MACSCHEME AND PSEUDOSCHEME. Sorry. **
+ *****************************************************************************
+
+-------------------------------------------------------------------------------
+PS9-ECEVAL.SCM -- The Explicit Control Evaluator. Essentially the same as in
+                  the book but with the same hideous magic error trapping hacks
+                  as in the Problem Set 8 AMBScheme evaluator. You still don't
+                  need to understand these magic hacks... you'll never need to.
+-------------------------------------------------------------------------------
+PS9-COMP.SCM ---- The Compiler that produces code for the register machines
+                  that we simulate. Virtually identical to code the in the
+                  book.
+
+PS9-OPEN.SCM ---- The basis for you PS9-ANSWER file. This implements the
+                  open-coding of one-arg primitives in compiled code. You will
+                  extend it for two-argument primitives. This is non-trivial.
+-------------------------------------------------------------------------------
+PS9-REGSIM.SCM -- The Simulator code for out Register Machines, extended with
+                  various performance-monitoring hooks and debugging probes.
+-------------------------------------------------------------------------------
+PS9-SYNTAX.SCM -- Our ducky data abstractions to insulate ourselves from the
+                  syntax of our evaluator input expressions (what READ yields).
+                  Not unlike the stuff for the Problem Set 8 AMBScheme eval.
+-------------------------------------------------------------------------------
+PS9-MAGIC.SCM --- Magic incantations to make this code run on MIT Scheme.
+                  Needless to say, you don't need to understand this magic.
+
+PS9-PORTS.SCM --- Magic incantations to make this code have a chance of running
+                  in other Scheme environments as well. No warrantees expressed
+                  or implied. Caveat Emptor. E Pluribus Unum. Quid, me vexare?
+                  Populus vult decipitur; decipiatur. Om mani padme hum! Nuf sed
+-------------------------------------------------------------------------------

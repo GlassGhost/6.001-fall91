@@ -1,0 +1,572 @@
+\input ../6001mac		% On ALTDORF.AI.MIT.EDU
+\begin{document}
+
+\psetheader{Fall Semester, 1991}{Problem Set 6}
+
+\medskip
+
+\begin{flushleft}
+Issued:  Tuesday, October 22, 1991 \\
+\smallskip
+Written solutions due: Friday, November 1, 1991 \\  
+\smallskip
+Tutorial preparation for: week of October 28, 1991 \\
+\smallskip
+Reading: section 3.3; lecture notes for October 22, 1991, and code,
+attached. \\ 
+\end{flushleft}
+
+\paragraph{QUIZ ANNOUNCEMENT:} Quiz 1 is on Wednesday, October 23, in
+Walker Memorial Gymnasium (54--340) from 5--7 PM or 7--9 PM.  
+
+The programming assignment for this week explores two ideas: the
+simulation of a world in which objects are characterized by
+collections of state variables, and the use of {\em object-oriented
+programming} as a technique for modularizing worlds in which objects
+interact.  These ideas are presented in the context of a simple
+simulation game like the ones available on many computers.  Such games
+have provided an interesting waste of time for many computer lovers.
+In order not to waste too much of your own time, it is important to
+study the system and plan your work before coming to the lab.
+
+This problem set begins by describing the overall structure of the
+simulation.  The exercises in part 2 will help you to master the ideas
+involved.  
+
+The overall object-oriented programming framework is discussed in
+lecture on October 22, and in the lecture notes for that day.
+
+\section{Part 1: The 6.001 Adventure Game}
+
+The basic idea of simulation games is that the user plays a character
+in an imaginary world inhabited by other characters. The user plays
+the game by issuing commands to the computer that have the effect of
+moving the character about and performing acts in the imaginary world,
+such as picking up objects.  The computer simulates the legal moves
+and rejects illegal ones.  For example, it is illegal to move between
+places that are not connected (unless you have special powers).  If a
+move is legal, the computer updates its model of the world and allows
+the next move to be considered.
+
+Our game takes place in a strange, imaginary world called MIT, with
+imaginary places such as a computer lab, Building 36, and Tech Square.
+In order to get going, we 
+need to establish the structure of this imaginary world: the objects
+that exist and the ways in which they relate to each other.
+
+Initially, there are three procedures for creating objects:
+
+\beginlisp
+  (make-thing name)
+  (make-place name)
+  (make-person name place restlessness)
+\endlisp
+
+In addition, there are procedures that make people and things and
+procedures that install them in the simulated world.  The reason that
+we need to be able to create things separately from installing them
+will be discussed in one of the exercises later.  For now, we should
+note the existence of the procedures
+
+\beginlisp
+  (make\&install-thing name place)
+  (make\&install-person name place threshold)
+\endlisp
+
+Each time we make or make and install a person or a thing, we give it
+a name.  People and things also are created at some initial place.  In
+addition, a person has a restlessness factor that determines how often
+the person moves. For example, the procedure {\tt
+make\&install-person} may be used to create the two imaginary
+characters, {\tt hal} and {\tt eric}, and put them in their places, as
+it were.
+
+\beginlisp
+  (define  hal-office (make-place  'hal-office))
+  (define eric-office (make-place 'eric-office))
+\null
+  (define  hal (make\&install-person  'hal  hal-office 3))
+  (define eric (make\&install-person 'eric eric-office 2))
+\endlisp
+
+All objects in the system are implemented as message-accepting
+procedures, as described in lecture on October 22.
+
+Once you load the system in the laboratory, you will be able to
+control {\tt hal} and {\tt eric} by sending them appropriate messages.
+As you enter each command, the computer reports what happens and where
+it is happening. For instance, imagine we had interconnected a few
+places so that the following scenario is feasible:
+
+\beginlisp
+==> (ask hal 'look-around)
+At HAL-OFFICE : HAL says -- I see nothing 
+==> (ask (ask hal 'place) 'exits)
+(UP DOWN)
+==> (ask hal 'go 'down)
+HAL moves from HAL-OFFICE to TECH-SQUARE 
+\#T
+==> (ask hal 'go 'south)
+HAL moves from TECH-SQUARE to BUILDING-36 
+\#T
+==> (ask hal 'go 'up)
+HAL moves from BUILDING-36 to COMPUTER-LAB 
+\#T
+==> (ask ERIC 'look-around)
+At ERIC-OFFICE : ERIC says -- I see nothing 
+()
+==> (ask (ask ERIC 'place) 'exits)
+(DOWN)
+==> (ask ERIC 'go 'down)
+ERIC moves from ERIC-OFFICE to HAL-OFFICE
+\#T
+==> (ask ERIC 'go 'down)
+ERIC moves from HAL-OFFICE to TECH-SQUARE
+\#T
+==> (ask ERIC 'go 'south)
+ERIC moves from TECH-SQUARE to BUILDING-36 
+\#T
+\endlisp
+
+\beginlisp
+==> (ask ERIC 'go 'up)
+ERIC moves from BUILDING-36 to COMPUTER-LAB 
+At COMPUTER-LAB : ERIC says -- Hi HAL 
+\#T
+\endlisp
+
+In principle, you could run the system by issuing specific commands to
+each of the creatures in the world, but this defeats the intent of the
+game since that would give you explicit control over all the
+characters.  Instead, we will structure our system so that any
+character can be manipulated automatically in some fashion by the
+computer.  We do this by creating a list of all the characters to be
+moved by the computer and by simulating the passage of time by a
+special procedure, {\tt clock}, that sends a {\tt move} message to
+each creature in the list.  A {\tt move} message does not
+automatically imply that the creature receiving it will perform an
+action.  Rather, like all of us, a creature hangs about idly until he
+or she (or it) gets bored enough to do something.  To account for
+this, the third argument to {\tt make-person} specifies the number of
+clock intervals that the person will wait before doing something (the
+restlessness factor).
+
+Before we trigger the clock to simulate a game, let's explore the
+properties of our world a bit more.
+
+First, let's create a {\tt computer-manual} and place it in the {\tt
+computer-lab} (where {\tt hal} and {\tt eric} now are).
+
+\beginlisp
+==> (define computer-manual (make\&install-thing 'computer-manual computer-lab))
+COMPUTER-MANUAL
+\endlisp
+
+Next, we'll have {\tt hal} look around.  He sees the manual and {\tt
+eric}.  The manual looks useful, so we have {\tt hal} take it and leave.
+
+\beginlisp
+==> (ask hal 'look-around)
+At COMPUTER-LAB : HAL says -- I see COMPUTER-MANUAL ERIC 
+(COMPUTER-MANUAL ERIC)
+==> (ask hal 'take computer-manual)
+At COMPUTER-LAB : HAL says -- I take COMPUTER-MANUAL 
+\#T
+==> (ask hal 'go 'down)
+HAL moves from COMPUTER-LAB to BUILDING-36 
+\#T
+\endlisp
+
+{\tt Eric} had also noticed the manual; he follows {\tt hal} and
+snatches the manual away.  Angrily, {\tt hal} sulks off to the
+EGG-Atrium:
+
+\beginlisp
+==> (ask eric 'go 'down)
+ERIC moves from COMPUTER-LAB to BUILDING-36 
+At BUILDING-36 : ERIC says -- Hi HAL 
+\#T
+==> (ask eric 'take computer-manual)
+At BUILDING-36 : HAL says -- I lose COMPUTER-MANUAL 
+At BUILDING-36 : HAL says -- Yaaaah! I am upset! 
+At BUILDING-36 : ERIC says -- I take COMPUTER-MANUAL 
+\#T
+==> (ask hal 'go 'west)
+HAL moves from BUILDING-36 to EGG-ATRIUM
+\#T
+\endlisp
+ 
+Unfortunately for {\tt hal}, beneath the EGG-Atrium is an inaccessible
+dungeon, inhabited by a troll named {\tt grendel}.\footnote{Rumors
+that Grendel is a former 6.001 lecturer whose absence is covered by an
+alleged sabbatical at Cal Tech are wholly unfounded!}  A troll is a
+kind of person; it can move around, take 
+things, and so on.  When a troll gets a {\tt  move} message from the clock,
+it acts just like an ordinary person---unless someone else is in the
+room.  When {\tt grendel} decides to {\tt act}, it's game over for {\tt hal}:
+
+\beginlisp
+==> (ask grendel 'move)
+GRENDEL moves from DUNGEON to EGG-ATRIUM 
+At EGG-ATRIUM : GRENDEL says -- Hi HAL
+\#T
+\endlisp 
+
+After a few more moves, {\tt grendel} acts again:
+
+\beginlisp
+==> (ask grendel 'move)
+At EGG-ATRIUM : GRENDEL says -- Growl.... I'm going to eat you, HAL 
+At EGG-ATRIUM : HAL says -- Do as you will, to your hurt and shame,
+                            but none of my programs, in God's name,
+                            shall you touch.
+HAL moves from EGG-ATRIUM to HEAVEN 
+At EGG-ATRIUM : GRENDEL says -- Chomp chomp. HAL tastes yummy! 
+\#T
+\endlisp
+
+\paragraph{Implementation}
+
+The simulator for the world is contained in two files, which are
+attached to the end of the problem set. The first file, {\tt
+ps6-adv.scm}, contains the basic object system, procedures to create
+people, places, things, trolls, 
+together with various other useful procedures.  The second file {\tt
+ps6-world.scm}, contains code that initializes our particular
+imaginary world and installs {\tt hal}, {\tt eric}, and {\tt grendel}.
+
+\section{Part 2: Preparing for tutorial}
+
+\paragraph{Tutorial problem 1}
+
+Draw a simple inheritance diagram showing all the kinds of objects
+(classes) defined in the system, the inheritance relations between
+them, and the methods defined for each class.
+
+\paragraph{Tutorial problem 2}
+
+Draw a simple map showing all the places created by evaluating {\tt
+ps6-world.scm}, and how they interconnect.  You will probably find
+this map useful in dealing with the rest of the problem set.
+
+\paragraph{Tutorial problem 3}
+
+Given {\tt hal}'s penchant for bandying phenomenological terms around, it
+would not be unusual to find a copy of Heidegger's work lying about
+his office.  Suppose we create one with the following commands:
+
+\beginlisp
+==> (define being\&time (make\&install-thing 'being\&time hal-office))
+\endlisp
+
+At some point in the evaluation of this expression, the expression
+
+\beginlisp
+(set! things (cons new-thing things))
+\endlisp
+
+will be evaluated in some environment.  Draw an environment diagram,
+showing the full structure of {\tt hal-office} at the point where
+this expression is evaluated.  Don't show the details of {\tt
+being\&time}---just assume that {\tt being\&time} is a name defined in
+the global environment that points off to some object that you draw as
+a blob. For the purposes of this exercise, you can also assume that
+{\tt memq} is a primitive.  
+
+\paragraph{Tutorial problem 4}
+
+Suppose that, in addition to {\tt being\&time} in problem 3, Hal has
+another book of the same title lying around his office, written by the
+famed author Hugh Manitee.  Suppose we create this second book by saying
+
+\beginlisp
+==> (define hugh-book (make-thing 'being\&time hal-office))
+\endlisp
+
+Are {\tt being\&time} and {\tt hugh-book} the same object (i.e.,
+are they {\tt eq?})?  If {\tt hal} wanders to a place where they both
+are and looks around, what message will be printed?
+
+\section{Part 3: Homework exercises}
+
+The following exercises should be written up and turned in at
+recitation.  We suggest that you do them before coming to the lab.
+
+\paragraph{Problem 1}  
+
+Examine the code for {\tt change-place}, which is used by mobile
+objects to move around.  {\tt Change-place} is a procedure that takes
+a mobile object and a new place as arguments, i.e., we write 
+
+\beginlisp
+(change-place hal eric-office)
+\endlisp
+
+to make {\tt hal} go upstairs to {\tt eric}'s lofty abode.  We could
+have implemented {\tt change-place} as a method internal to mobile
+objects.  This method would take as arguments a mobile object self and
+a new place.  We would use it by saying 
+
+\beginlisp
+(ask hal 'change-place eric-office)
+\endlisp
+
+(a) Write the method clause you would add to {\tt make-mobile-object}
+to implement this change.  Hand in a copy of this clause.
+
+(b) Whenever you add a new behavior for a class of things, you have
+to make a decision whether you want to implement it as a procedure or
+a new method.  For the case of {\tt change-place}, discuss the pros
+and cons of each approach, and state which you think is more
+desirable.  
+
+\paragraph{Problem 2}
+
+Note how {\tt install} is implemented as a method defined as part of {\tt
+mobile-object} and {\tt person}. Notice that the {\tt person} version puts the
+person on the clock list (this makes them ``animated'') then invokes the {\tt
+mobile-object} version on {\tt self}, which makes the {\tt place} where {\tt
+self} is being installed aware that {\tt self} thinks it is in that place. That
+is, it makes the {\tt self} and {\tt place} consistent in their belief of where
+{\tt self} is. The relevant details of this situation are outlined in the code
+excerpts below:
+
+\beginlisp
+(define (make-person name place threshold)
+  (let ((mobile-obj (make-mobile-object name place))
+        \vdots)
+    (lambda (message)
+      (cond \ldots
+            \vdots
+            ((eq? message 'install)
+             (lambda (self)
+               (add-to-clock-list self)
+               ((get-method mobile-obj 'install) self) ))   ; **
+            \vdots))))
+\null
+(define (make-mobile-object name place)
+  (let ((named-obj (make-named-object name)))
+    (lambda (message)
+      (cond \ldots
+            \vdots
+            ((eq? message 'install)
+             (lambda (self)
+               (ask place 'add-thing self)))
+            \vdots))))
+\endlisp
+      
+Louis Reasoner suggests that it would be simpler if we change the
+last line of the {\tt make-person} version of the {\tt install} method to read:
+
+\beginlisp
+               (ask mobile-obj 'install) ))   ; **
+\endlisp
+
+Alyssa~P.\ Hacker points out that this would be a bug.  ``If you did
+that,'' she says, ``then when you {\tt make\&install-person} Hal and
+Hal moves to a new place, he'll thereafter be in two places at once!
+The new place will claim that Hal is there, and Hal's place of birth
+will also claim that Hal is there.''
+
+What does Alyssa mean?  Specifically, what goes wrong? You may need to
+draw an appropriate environment diagram to explain carefully.
+
+\section{Part 4: Lab Work}
+
+When you load the code for problem set 6, the system will load {\tt
+ps6-adv.scm}.  We do not expect you to have to make significant
+changes in this code, though you may do so if you want to.  (See
+Problem 9 below.)
+
+The system will also set up a buffer with {\tt ps6-world.scm} but does not load
+it
+into {\sc Scheme}.  Since the simulation model works by data mutation, it is
+possible to get your {\sc Scheme}-simulated world into an inconsistent state
+while debugging.  To help you avoid this problem, we suggest the following
+discipline: any procedures you change or define should be placed in your {\tt
+ps6-answer.scm} file; any new characters or objects you make and install should
+be added to {\tt ps6-world.scm}.  This way whenever you change some procedure
+and re-zap it into {\sc Scheme} you can make sure your world reflects these
+changes by simply re-zapping the entire {\tt ps6-world.scm} file.  Finally, to
+save you from retyping the same scenarios repeatedly--- for example, when
+debugging you may want to create a new character, move it to some place
+interesting, then ask it to act--- we suggest you define little test ``script''
+procedures at the end of {\tt ps6-world.scm} which you can invoke to act out
+the scenarios when testing your code.  See the comments in {\tt ps6-world.scm}
+for details.
+
+\paragraph{Problem 3}
+
+After loading the system, make {\tt hal} and {\tt eric} move around by
+repeatedly calling {\tt clock} (with no arguments).  (a) Which person is
+more restless?  (b) How often do both of them move at the same time?
+
+\paragraph{Problem 4}
+
+Make and install a new character, yourself, with a high enough threshold
+(say, 100) so that you have ``free will'' and will not be moved by the
+clock.  Place yourself initially in the {\tt dormitory}.  Also make
+and install a thing called  {\tt late-homework}, so that it starts in
+the {\tt dormitory}. 
+Pick up the {\tt late-homework}, find out where {\tt eric} is, go
+there, and try to get {\tt eric} to take the homework even though he
+is notoriously adamant in his stand against accepting tardy problem sets.
+Can you find a way to do this that does not leave {\em you} upset? 
+Turn in a list of your definitions and actions.  If you wish, you can
+intersperse your moves with calls to the clock to make things more
+interesting.  (Watch out for {\tt grendel}!)
+
+\paragraph{Problem 5}
+
+For the rest of the problem set, you will create some new procedures
+that simulate the current HASS-D crunch at MIT.\footnote{We have been
+asked to undertake this simulation by the MIT Committee on the
+Undergraduate Program, which would like to verify that recent changes
+to the Institute requirements have had the intended effect of making
+it impossible for anyone to ever graduate.} First, you will create a
+new type of place called a HASS-class.  Define a new procedure called
+{\tt make-hass-class}.  This procedure should take a parameter for the
+class's {\tt name}, like any other place.  In addition, a {\tt
+hass-class} should keep track of how many people have registered for
+it.  This number should start at zero.  A {\tt hass-class} should have
+a method called {\tt openings?} which returns true if the number of
+people registered is still less than three.  (This enrollment ceiling
+is a bit more strict at our imaginary MIT than at the real one.)
+
+A {\tt hass-class} should also have a method called {\tt
+add-student}.  This should increment the number of students
+registered if this number is less than three.  (Note: you needn't
+bother to implement {\tt drop-student} since at the imaginary MIT
+openings in HASS-D classes are so rare it is inconceivable a student
+would drop one she or he actually managed to get into.)  Finally, a
+{\tt hass-class} should also have a method called {\tt hass-class?}
+which returns true, allowing students to check when they enter a new
+place if they have, wonder of wonders, actually found one of the
+often-desired but seldom-seen HASS-D classes. 
+
+\paragraph{Problem 6}
+
+Create a four or more of your favorite {\tt hass-class}es and put them
+into the world. Make sure you connect them to existing places with
+{\tt can-go} so people can actually get to them.  You may find it
+convenient to change some of the topography of the map given with the
+problem set depending on where you want to put your classes.   Hand
+in the code you use to do this, and test cases showing all the places
+exist, you can get to them, and that all the methods described in the
+previous problem actually work.
+
+\paragraph{Problem 7}
+
+Now, you need to define a new type of person called an undergrad.  In
+our imaginary world, things at MIT have gotten so bad that the
+biggest difficulty an undergraduate faces in acquiring a degree is 
+accumulating a sufficient number of HASS-D courses.  Define a
+procedure {\tt make-undergrad} that takes three agruments-- a name, an
+initial place, and a restlessness -- and creates an undergrad as a
+special kind of person.  In addition to all the usual state a person
+has, an undergrad must keep a list of all the  HASS-D classes he or
+she has taken.  An undergrad should have a method called {\tt
+transcript} that returns this list of classes when you type \linebreak
+{\tt (ask joe 'transcript)} assuming {\tt joe} is an undergraduate.  
+
+An undergrad also should have a method {\tt 'add-hass-class}.  This
+method should add the {\tt hass-class} the student is currently in to
+the list of classes taken. Just to make sure we can tell them apart
+from normal people, undergrads should also have a method called {\tt
+'undergrad?} (of one argument {\tt self}) that returns {\tt true}.
+That way, if you meet someone you are not sure is an
+undergrad or merely a grad student or junior faculty member of
+youthful countenance, you can use {\tt (is-a larry 'undergrad?)} to check. 
+\footnote{In reality, everyone knows you can easily differentiate
+undergrads from grads and junior faculty.  The undergrads always look
+bright-eyed and idealistic, while grad students are unshaven and
+cynical, and junior faculty are always jumpy and looking over their
+shoulders like hunted rabbits.}
+
+When asked to {\tt act}, an undergrad should first check whether she
+or he is in is a {\tt hass-class} and if so, whether the class still
+has {\tt openings}.  If both of these are true, and the undergrad
+still hasn't taken this class (i.e., it isn't already on the {\tt
+transcript} list), the undergrad should immediately add it to her or
+his trascript list using the {\tt add-hass-class} method, {\tt ask}
+the class to do its {\tt add-student} method, and make some suitable
+exclamation about how culturally broadened the undergrad feels for
+having taken this class.  If any of these conditions are not met, the
+undergrad should just wander randomly as any other person would, and
+maybe flame a bit if there were no openings.
+
+Also define {\tt make\&install-undergrad}, similar to the other
+procedures which both create a new object and place it in the world.
+
+Hand in a listings of {\tt make-undergrad} and {\tt
+make\&install-undergrad}, along with some code recreating yourself as
+an undergrad, and show yourself moving around and taking your favorite
+HASS-D classes.
+
+
+\paragraph{Problem 8}
+
+Finally, create one more sub-class of people, called, for historical
+reasons, a {\tt no-neck-man}.  When asked to {\tt act}, the {\tt
+no-neck-man} does one of two things.  If there are any undergrads in
+the room who have three or more {\tt hass-class}es on their
+transcripts, the {\tt no-neck-man} should remark how great it is to be
+at another commencement, and for each such undergrad in the room,
+create a thing called a diploma and give it to them, and then shake
+their hand.\footnote{Due to the incredible difficulty in finding open
+HASS-D classes, it is assumed anyone who actually managed to
+accumulate three such classes has long since passed all the other
+requirements for a degree.} However, if there are no undergrads who
+have satisfied the HASS-D requirement in the room, the {\tt
+no-neck-man} moves like anyone else.
+
+Hand in definitions for both {\tt make-no-neck-man} and {\tt
+make\&install-no-neck-man}.  Also hand in a demonstration that your
+definitions work.
+
+\paragraph{Putting it all together}
+
+Now you have the elements of a simple game: try to walk around MIT
+without getting eaten by trolls.  Along the way, try to collect HASS-D
+classes before your classmates take all the slots, and then try to
+find the {\tt no-neck-man} so you can graduate.    Set up some 
+characters and objects and run the clock for a while and watch what
+happens.  By modifying the number of characters and their restlessness
+factors, you can vary the difficulty of the game.
+
+Simulations like this can become arbitrarily complex.  Here are some
+possible extensions:
+
+\begin{itemize}
+\item
+You might add a magic wand that lets you magically teleport between
+rooms.  
+
+\item
+You could make a special thing called a {\tt petition} that lets you
+register for a class even if it's full, since you need it to graduate.
+\end{itemize}
+
+\noindent
+But don't limit yourself to our suggestions.
+
+\paragraph{Problem 9}
+
+Define some modification(s) to the game.  Turn in a description (in
+English) of your modifications, the code you wrote to implement them,
+and a brief demonstration scenario.  For this problem, you may need to
+modify the procedures in {\tt ps6-adv.scm} or add new places and so
+on. 
+
+Prizes will be awarded for the cleverest ideas.  {\sl Everyone
+knows how to implement magic wands!!! Therefore, no prize will be
+awarded for that particular extension.}
+
+\paragraph{Problem 10} (Optional HASS-D extra credit)
+When our characters go to heaven, they make a brief proclamation.
+What is the source of these (misquoted) last words, what is the actual
+quotation, and what is the name of the character that speaks them from
+death's dark doorstep?\footnote{No, it is not Spock in Star Trek II!.}
+
+\end{document}
+

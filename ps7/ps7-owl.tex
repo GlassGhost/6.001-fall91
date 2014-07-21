@@ -1,0 +1,726 @@
+\input ../6001mac.tex				% On ALTDORF.AI.MIT.EDU
+
+\def\fbox#1{%
+  \vtop{\vbox{\hrule%
+     \hbox{\vrule\kern3pt%
+ \vtop{\vbox{\kern3pt#1}\kern3pt}%
+ \kern3pt\vrule}}% 
+ \hrule}}
+
+\begin{document}
+
+\psetheader{Fall Semester, 1991}{Problem Set 7}
+
+\noindent
+Issued: Tuesday, October 29
+
+\noindent
+Tutorial preparation for:  Week of November~4
+
+\noindent
+Written solutions due: Friday, November~8, in Recitation
+
+\noindent
+Reading assignment: Chapter~3, Section~3.4, {\cf ps7-owl.scm} (attached)
+
+\medskip
+
+\section{Part~1: Tutorial exercises}
+
+These tutorial problems will be discussed in the tutorial held the week
+that the problem set is due, i.e. you should be prepared to discuss
+these problems before you turn in the problem set.
+
+\paragraph{Tutorial Problem~1} 
+Modified exercise~3.43 --- Details about delayed evaluation.
+
+The implementation of streams involves (at least) two important ideas:
+delayed evaluation and memoization. The idea of delayed evaluation is used
+to implement the behavior in {\cf cons-stream} that the
+head of the stream be explicitly evaluated at the time of construction of the
+stream whereas evaluation of the tail of the stream be delayed until its
+value is explicitly required. The idea of memoization is used to satisfy the
+requirement that, once we've carried out
+an explicit evaluation partway along a stream, those values are stored so
+that subsequent requests for the same stream elements will return the
+stored values without the need for re-evaluation. In this tutorial problem we
+take a closer look at both of these issues. To do so, we use the following
+procedures:
+
+\beginlisp 
+(define (show x)
+  (print x)
+  x)
+\null
+(define (nth-stream n s)
+  (if (= n O)
+      (head s)
+      (nth-stream (-1+ n) (tail s))))
+\endlisp 
+
+Assume that delay is implemented as explained at the bottom of page~264 of the
+text.
+
+(a) Explain why {\sc Scheme} behaves as shown below when the definition
+of {\cf x} is first evaluated.
+
+\beginlisp 
+==> (define x (map show (enumerate-interval 0 10)))
+0
+x
+\endlisp 
+
+{\samepage
+(b) What will be printed and why if we now evaluate
+
+\nopagebreak[4]
+\beginlisp 
+==> (head x)
+\null
+==> (tail x)
+\endlisp 
+}
+
+(c) Assume that the interpreter has evaluated the two expressions in (a)
+and (b) above. What will be printed in response to evaluating, in succession,
+each expression in the following sequence:
+
+\beginlisp 
+==> (nth-stream 5 x)
+\null
+==> (nth-stream 7 x)
+\endlisp 
+
+\paragraph{Tutorial Problem~2} 
+
+Suppose we represent vectors
+\[ \vec{v} = [x_1\ldots x_i\ldots x_n] \] as streams of
+numbers, and $m \times n$ matrices
+\[ M = \left[ \begin{array}{lclcl}
+                x_{11} & \ldots & x_{1j} & \ldots & x_{1m} \\
+                \vdots &        & \vdots &        & \vdots \\
+                x_{i1} & \ldots & x_{ij} & \ldots & x_{im} \\
+                \vdots &        & \vdots &        & \vdots \\
+                x_{n1} & \ldots & x_{nj} & \ldots & x_{nm} \\
+              \end{array}
+      \right]
+\]
+as streams of vectors (each element of the
+stream being a row of the matrix where each row is a vector). That is:
+\[ M = \begin{array}{rlclcll}
+        [ & [x_{11} & \ldots & x_{1j} & \ldots & x_{1m}] &     \\
+          &         &        & \multicolumn{1}{c}{\vdots} & & & \\
+          & [x_{i1} & \ldots & x_{ij} & \ldots & x_{im}] &     \\
+          &         &        & \multicolumn{1}{c}{\vdots} & & & \\
+          & [x_{n1} & \ldots & x_{nj} & \ldots & x_{nm}] & ]   \\
+       \end{array}
+\]
+
+Using {\cf map} and {\cf accumulate}, define procedures for taking
+
+(a) the dot-product, i.e. {\cf (dot-product $\vec{v}$ $\vec{w}$)} should return
+the scalar sum \[\vec{v} \cdot \vec{w} = \sum_i v_iw_i,\]
+
+(b) the product of a matrix times a vector, i.e. {\cf (matrix-times-vector
+$M$ $\vec{v}$)} should return the vector $t$, where
+\[M \cdot \vec{v} = \vec{t} ~~~\mbox{such that}~~~ t_i = \sum_j M_{ij}v_j.\]
+
+(c) Assume that the procedure {\cf (transpose $M$)} transposes an $m \times n$
+matrix, i.e. returns the $n \times m$ matrix $N$ where
+\[M^{\top} = N ~~~\mbox{such that}~~~ N_{ij} = M_{ji}.\]
+Use this with your procedures from (a) and (b) to implement a procedure {\cf
+(matrix-times-matrix $M$ $N$)} which returns the matrix $P$ where
+\[M \times N = P ~~~\mbox{such that}~~~ P_{ij} = \sum_k M_{ik}N_{kj}.\]
+
+\paragraph{Tutorial Problem~3} 
+Section~3.4 discusses two ways to combine two
+infinite streams to form a single stream. The {\cf interleave} procedure
+(section~3.4.5), which can be used with any streams, simply selects
+elements alternately from the two streams. Merging (exercise~3.46) is
+an alternative combination method that can be used when there is some
+way to compare the sizes of stream elements. The {\cf merge} operation
+takes two ordered streams (where the elements are arranged in
+increasing order) and produces an ordered stream as a result,
+omitting duplicates of elements that appear in both streams.
+
+{\samepage
+Suppose we evaluate the following expressions:
+
+\nopagebreak[4]
+\beginlisp 
+(define double (cons-stream 1 (scale-stream 2 double)))
+(define triple (cons-stream 1 (scale-stream 3 triple)))
+\null
+(define X (interleave triple double))
+(define Y (merge      triple double))
+\endlisp
+}
+
+What are the first 5 elements of X? of Y? Check your answers in lab.
+
+\section{Part 2: Lab Work -- Streams and Delayed Evaluation}
+
+In contrast with the standard tools introduced so far in this course, streams
+provide a different way of reasoning about procedures and processes.  In
+particular, streams are useful for modeling infinite mathematical objects, such
+as a sequence of samples of a continuous-time signal or the sequence of
+coefficients of an infinite power series.  In this problem set, we will
+concern ourselves mainly with the former, that is, modelling signals using
+streams.
+
+Use the {\cf Load Problem Set} command to load the code in the appendix from
+the system onto your Chipmunk.  You will not need to modify most of the
+code, although a few templates for use in some of the problems are
+included in {\cf ps7-answer.scm}.
+
+This problem set concentrates on the use of 
+higher order procedures such as {\cf map}, {\cf filter}, and some others that
+you must
+write.  You should be familiar with the attached code before starting to work
+in the lab.  There are no large programs to write, but lots of mind-stretching
+ideas to understand.  You will notice that there are lots of pieces to
+this problem set.  Fortunately, most of them involve solutions with small
+amounts of work that tend to build incrementally. We therefore encourage you to
+start working on it early so the lab assistants will have time to unstick you
+if you get stuck.
+
+\section{The Amazing Owl}
+
+Louis Reasoner has recently been reading about the neurophysiology and
+psychophysics of the owl's perceptual system and has become
+fascinated with the owl's uncanny ability to locate prey.
+
+For
+example, the owl actually has finer visual acuity than humans. 
+Surprisingly, the actual packing of photoreceptors in owl's retina is
+roughly the same as in human retinas (which may well be the limiting
+case), but the owl obtains its better acuity by having a bigger eyeball,
+so that the center of the visual image is nearly twice as large as that
+of a human.  Moreover, since the owl has to locate small prey (e.g.~mice) at
+large distances, it needs some means of capturing 3D information about the
+world.  In part, it does this with an amazing stereo vision system (that
+is, it uses the differences in the appearance of the world in the two eyes
+to recover the distance to points in the world).  Humans use their
+ability to change the angle of gaze of their eyes to fixate on objects 
+at different distances in front of them.  Owls, on the other hand, have
+their eyes fixed in their heads and use a hardwired retina to do stereo
+vision.  Specifically, receptors at the top of the two retinas are ``wired
+together'' to detect objects at roughly the distance of the owls' feet
+and, as you move down the retina, the receptors in the two eyes are
+``wired together'' to detect objects at varying distances lying on a
+slanted plane that extends to the horizon.  As a consequence, if the owl
+wants to figure out how far away something is, it must bring those
+photoreceptors tuned to different distances into alignment with the
+object. It does this by nodding its head.  Hence, while you may
+think the owl is looking very wise by doing this, it is actually just
+trying to figure out how far away you are.
+
+Clearly, the owl needs this
+incredible visual system for detecting  and catching small prey.  But
+surprisingly, it can also locate prey this way at night, in part because of the
+extreme sensitivity of its visual system, but also because it also has
+an incredible auditory system.  For example, the owl can detect
+differences in time of arrival of a sound at its two ears of less than
+10 microseconds (and the actual sensitivity may be even smaller). This
+allows it to determine the orientation of the sound source with respect
+to itself to an accuracy of less than one degree of arc.  This enables it
+to locate the orientation of some prey in a  plane parallel to the
+ground.   To determine how high or low the prey is relative to that
+plane, the owl needs some other information.  In fact, its ears are not
+symmetrically placed on its head, but are canted relative to one
+another, so that it can use differences in the perceived sounds to tell
+the elevation of the source.
+
+Louis is fascinated by this system (as obviously is the author of this
+problem set) so he decides this would be an interesting thing to
+simulate. (He's also planning on taking 9.35 and 9.36 to learn more about
+these sorts of perceptual systems). Since
+he also recently read about streams in {\bf Strife and Interminability of
+Computer Programming}, he decides to use this idea in building a
+simulator.
+
+Initially, Louis models his simulation based on the geometry of
+Figure~\ref{fig:geometry}.
+
+\begin{figure}[hbt]
+\vskip 2in
+\caption{The geometry of auditory stimuli}\label{fig:geometry}
+\end{figure}
+
+If the prey is located at some distance $d$ from the center of the owl's
+head, at an angle $\theta$ from the straight-ahead direction,  if the
+distance from each ear to the center of the owl's head is a baseline
+$b$, and if the speed of travel of an auditory signal is $v$, then the
+difference in distance that a sound must travel to reach the left and
+right ears is given by 
+\[v (t_l - t_r)\]
+where $t_l$ and $t_r$ are the lengths of time it takes the sound to
+reach the left and right ears respectively.  Of course, we don't know
+when the sound left the prey, but we can in principle measure the
+difference in arrival of the sound at each ear, $t_l -t_r$.
+
+Some
+geometric and algebraic manipulations show that as long as $d \gg b$,
+then the orientation of the 
+prey, $\theta$, is approximately given by
+\[\tan\theta \approx {{v(t_l - t_r)} \over{\sqrt{4b^2 - v^2(t_l -
+t_r)^2}}}.\]
+If we know the baseline $b$ and the speed of propagation $v$, and we
+measure $t_l-t_r$ then we could recover the direction of the prey.
+
+To get an estimate of the distance to the prey, we will assume that
+sound diminishes according to an inverse-square law.  That is, if $S$ is
+the volume of the sound emitted by the prey, and $d_l$ and $d_r$ are the
+distances to the left and right ears, respectively, then the volume of
+sound recorded in each ear is
+\[s_l = {S \over {d_l^2}} \qquad s_r = {S \over d_r^2}.\]
+We don't know $S$, but some algebra yields the following
+approximation for the 
+distance to the sound source 
+%\[d \approx {{v(t_l - t_r)} \over {\sqrt{{s_r \over s_l}} - 1}}.\]
+\[d \approx {{{v(t_l - t_r)} \over 2} \cdot {{s_l - s_r} \over {2\sqrt{s_l
+s_r} - s_l - s_r}}}.\]
+
+Thus, if we could somehow determine which sounds recorded in the left
+ear correspond to which sounds recorded in the right ear, and measure the
+difference in time in which each corresponding sound was recorded, we could
+estimate the orientation and distance to the prey emitting that sound. This is
+what our simulator ultimately will do.
+
+To help you out, Louis has provided a procedure for computing $d$,
+given as inputs a difference in time between hearing the signal in each
+ear, the actual signal recorded in the left and right ear, the velocity
+of the signal, and the size of the baseline:
+
+\beginlisp
+(define (compute-distance-and-angle time-shift lsig rsig v b)
+   ;; time-shift is left time - right time, lsig and rsig are signal
+   ;; strengths in two ears, v is signal velocity, b is baseline
+   ;; procedure returns a list of distance and orientation of signal source
+   (let ((theta (atan (- (* v time-shift))
+                      (sqrt (- (square (* 2 b))
+                               (square (* v time-shift))))))
+         (dist (* (/ (* v time-shift) 2)
+                  (/ (- lsig rsig)
+                     (- (* 2 (sqrt (* lsig rsig)))
+                        (+ lsig rsig))))))
+    (list dist theta)))
+\endlisp
+
+Louis has also provided default values, in arbitrary but consistent
+units,  to use for the speed of sound and the owl's baseline:
+i.e.~{\cf signal-velocity} and {\cf baseline} are global variables
+that you should use. 
+
+To model the owl's system, Louis decides to use infinite streams to
+represent the sounds recorded in each ear, where each element in the
+stream is a volume sample taken at regular intervals.  Louis has also
+provided some procedures for generating test samples.  Specifically, 
+{\cf make-test-signal} is a procedure of one argument, {\cf noise}, that
+will return a pair, the {\cf car} of which is the left ear's stream and
+the {\cf cdr} of which is the right ear's stream.  The argument {\cf
+noise} allows us to specify how much auditory noise is present in the
+signal (good values to use in your simulations are in the range of
+1--5).  {\cf Make-test-signal} will generate a pair of streams in which
+a single sound is emitted by the simulated prey.  Similarly, Louis has
+provided the procedure  
+{\cf make-test-signal-multi}, again a procedure of one argument {\cf
+noise}, which will produce a pair of streams in which several
+sounds are emitted by the simulated prey.
+
+\smallskip
+
+\paragraph{Problem~1} Before we start building our owl simulator, it is
+probably useful to review some basic things about streams.  Recall
+from the text that we could define an infinite stream of ones and
+integers using the following two expressions:
+
+\beginlisp
+(define ones     (cons-stream 1 ones))
+(define integers (cons-stream 1 (add-streams ones integers)))
+\endlisp
+
+(a) Type them in and use the {\cf print-stream} procedure to print them out.
+Use the {\cf plot-stream} procedure to plot them on the graphics screen. (You
+needn't turn in anything for the {\cf plot-stream} but show a transcript of
+your call to {\cf print-stream}.) Notice that {\cf plot-stream} does not first
+clear the graphics screen so you may need to do this yourself using {\cf
+clear-graphics}. This makes {\cf plot-stream} useful for plotting one stream
+against another, as we shall see later.
+
+(b) Using the same idea (i.e., {\it without\/} using an auxilary generating
+procedure), define
+the stream called {\cf mystery-stream} that starts with 1 and computes
+each successive element of the stream as the sum of all the elements
+before it.  Do you recognize the resulting stream? Warning: don't take advantage
+of the fact that you recognize it when you define it. Just construct it
+directly as prescribed above.
+
+(c) Define a procedure which takes two integers as arguments, a lower bound L
+and an upper bound U, and returns a stream of random integers such that each
+number is greater than or equal to L but strictly less than U.
+
+Hand in a listing of your definitions and a transcript of what the streams
+look like when you print them out using {\cf print-stream}.
+
+
+\paragraph{}
+\fbox{For most of the remaining problems, you should consider solutions
+that take advantage of the provided higher order procedures, like {\cf
+map}, {\cf filter}, {\cf add-streams}, and {\cf scale-stream}.}
+
+
+\paragraph{Problem~2}  We're ready to start helping Louis with his owl
+simulator. As we
+suggested above, if we could find matching events in the streams for the
+left and right ear, we could use Louis' procedure to compute the
+range and orientation of the prey.  But how do we find matching events?
+
+Louis, as usual, is stumped, but fortunately Alyssa observes (as have
+others) that usually the onset and offset of a signal is quite noticeable
+compared to the background noise, and that one could simply look in the
+signal for a sudden change in volume.  This, in fact, is simply the
+process of differentiation, which can be implemented by taking in a
+stream and producing a new stream in which each element is
+the difference between the successor of the corresponding element of
+the original stream and the corresponding element of the original stream.
+Thus, for example, if the first element is 5 and the second jumps to 42, then
+the first element of the diff stream should be 37.
+
+Write a procedure called {\cf diff} that implements this
+differentiation idea.  What stream results when you apply {\cf diff}
+to {\cf integers}? to {\cf mystery-stream?}. As with every problem in this
+problem set, hand in a {\sc Scheme} transcript of your test cases.
+
+
+\paragraph{Problem~3}  Alyssa observes that the differentiation idea will
+accentuate sudden changes in volume, for example, differentiating the
+stream 
+\[1\ \ 1 \ \ 1 \ \ 1 \ \ 12 \ \ 12 \ \ 12\ \ \ldots\]
+will lead to
+\[0 \ \ 0\ \ 0\ \ 11\ \ 0\ \ 0\ \ \ldots\]
+and in principle one could simply look for large values of the
+differentiated stream, such as the $11$ above.  In the presence of
+noise, however, almost every
+element in the differentiated signal will indicate some amount of
+change.
+
+The trick is to separate the changes corresponding to the sound
+of the prey from the noise. To do this, Alyssa suggests using two
+ideas.  First, 
+she notes that one can often reduce the effects of noise in a signal by
+smoothing the signal.  A simple way to do this is to average successive values
+in the stream, producing a new, smoother stream.
+
+Write a procedure {\cf
+smooth} that does this, and try applying it to one of your sample
+signals (namely, {\cf integers} and {\cf mystery-stream}).  Try to define this
+using the higher
+order procedures like {\cf scale-stream} and {\cf add-streams}. Test it.
+You may find it useful to use {\cf plot-stream} to plot both the original
+stream and the smoothed stream.
+
+\paragraph{Problem~4}  While averaging successive values does reduce the
+noise a bit, it may not be sufficient, so Alyssa suggests having the
+ability to smooth a signal repeatedly.
+
+(a) Using {\cf smooth}, write a
+procedure {\cf smooth-n} of two arguments, a {\cf stream} and an integer
+{\cf n}, which recursively applies {\cf smooth} n times. Test it on {\cf
+integers}.
+
+(b) Create a sample pair of signals using {\cf
+make-test-signal} with some non-zero amount of noise and try first
+smoothing then differentiating one of the signals, then try 
+differentiating then smoothing the same signal.  Are the results the
+same?  (You will understand why or why not after you take 6.003!)
+
+
+\paragraph{Problem~5}
+Using these two ideas, we could smooth each of the two
+signals, then
+differentiate them to get a stream of changes in the auditory channels.
+Now,  we need to find places where there is a sudden sharp change in
+volume, which correspond to large positive or negative values in the
+differentiated stream.
+
+The trick is to separate the real changes from
+the noise in the signal.    Typically, we
+can consider the noise in the signal to be
+``white'' noise (like the sound of an indoor waterfall).
+If we know the mean
+and deviation of that noise, than a traditional way of finding 
+``significant'' changes, $x$, is to find those changes whose absolute
+difference from the mean, $m$,  is greater than some multiple of the
+deviation $\sigma$ of
+the signal (typically $|x-m|>3\sigma$).
+
+Write a procedure called {\cf
+mark}, which takes as 
+arguments a stream (expected to be a smoothed, differentiated signal), a
+mean and a deviation, and  which returns a new stream with a 1 in each
+place where there is a ``significant'' change, and with a 0 everywhere
+else.  
+Applying {\cf mark} to one of your smoothed, differentiated signals
+should result in a stream with a few places ``marked''.  (You can use
+Louis' global variables {\cf mean} and {\cf dev} to try this.) You may again
+find {\cf plot-stream} useful.
+
+\paragraph{Problem~6}  Given that we can mark interesting points in the
+smoothed, differentiated signals, we now need to go back to the original
+smoothed signal and find the value of the signal at those points.
+
+We
+want to create a procedure called {\cf get-signal-strength} which
+takes two arguments:
+a marked stream and the smoothed (but undifferentiated) stream, with
+the following behavior.  If the marked stream has a 1 at some point, the
+output stream should have the average of the value of the smooth stream
+at that point and the value of its successor.  If the marked stream has a 0 at
+some point, the output stream should have a 0 at the corresponding
+point.
+
+To do this, we are going to generalize the idea behind {\cf
+add-streams}.  In particular, write a procedure called {\cf
+combine-streams}, which takes as arguments an operator and two
+streams, and returns a new stream, each element of which is obtained
+by applying the operator to the corresponding elements of the two
+input streams.  Use this procedure to write {\cf get-signal-strength}. 
+As always, show a couple of interesting test cases.
+
+
+\paragraph{Problem~7}  Given the output of {\cf get-signal-strength}, we
+need to record the significant events.  We can do this by generating a
+new stream whose elements are a combination of the elements of the
+output of {\cf get-signal-strength} and a label indicating the actual
+time sample in the stream (i.e. the first element is at time 1, the
+second at time 2, etc.), then generating a new stream in which we remove from
+this labeled stream all elements whose signal value is 0.  The result is a
+stream of only the significant events, the entries of which are a
+combination of the point in the stream at which it occurred (i.e. the
+time) and the value of the signal at that point.
+
+Using {\cf combine-streams}, write
+a procedure called {\cf dev-posns} which performs the described operation.
+(To get a stream of
+labels, we can use {\cf integers}.) Test it. Notice that we cannot use {\cf
+plot-stream} to plot the resulting streams since a {\cf dev-posns} stream will
+not be a stream of integers.
+
+\paragraph{Problem~8}  Finally, we convert each element in this new stream
+to get the information needed to compute range and orientation.  In
+particular, write a procedure {\cf measure-time-spread-and-signals}
+which takes as arguments a left and right processed stream (as in the
+previous parts) and produces as output a new stream, each of whose
+elements is a combination of three things: (1) the difference in time between
+the corresponding element of the left and right streams, (2) the left signal
+value, and (3) the right signal value.
+
+
+\paragraph{Problem~9}  We can put all of this together to build our first
+pass at an owl simulator.  Write a procedure called {\cf simulate} which
+takes as arguments a left and right stream, a smoothing
+factor (how many
+times to recursively smooth each signal -- good values are 2--5), the signal
+velocity, and the baseline. It should do the following:
+
+\begin{itemize}
+
+\item smooth the two signals
+
+\item differentiate the results
+
+\item mark the  significant events in those results
+
+\item get the signal strength in each smoothed stream associated with
+      a significant event
+
+\item determine the positions of the significant deviations in the
+      result 
+
+\item combine the two results  into a single stream, using {\cf
+      measure-time-spread-and-signals}
+
+\item generate a stream of range-orientation values by applying Louis'
+      {\cf compute-distance-and-angle} procedure to the result.
+
+\end{itemize}
+
+
+Try making a test signal using {\cf make-test-signal} with moderate
+amounts of noise (e.g. 2 or 3) and then applying your procedure to the
+two resulting streams, using the global variables {\cf
+signal-velocity} and {\cf baseline} as arguments.  At what orientation
+does the prey lie?   Roughly, how far away is it?
+
+
+\subsection{A kinder, gentler simulator}
+
+Alyssa points out that while the above first pass at a simulator will
+work, it does rely on knowing the mean and deviation of the noise in the
+signal. It would be much nicer if the system could deduce this
+itself.  In the final part of the problem set, we are going to help
+Alyssa implement this idea.
+
+
+\paragraph{Problem~10}
+Alyssa notes that we could estimate the mean and deviation
+of the signal
+by using the idea of a running sum.  This means that we could first
+measure the mean value and deviation of the first $n$ elements of a
+stream, then add the $n+1$st element, drop the first element and measure
+the new mean value and deviation, then add the $n+2$nd element, drop
+the second element, and measure the new mean value and deviation, and so on.
+
+First, write a procedure {\cf (first-n st n)} that computes the sum of the
+first $n$ elements of the stream {\cf st}, and returns that sum together
+with the remainder of the stream. Test it on {\cf integers}.
+
+
+\paragraph{Problem~11} Next, Alyssa now suggests that we create
+a stream whose elements are the sums of successive sets of $n$ elements
+of the original stream.  We begin by getting the sum of the first $n$
+elements, plus the remainder of the stream starting at $n+1$, as
+indicated in the previous problem.  We can make this the first element of our
+output stream.  By then adding in the next element in the
+original stream, and subtracting out the first element of the original
+stream, we can generate the next sum of $n$ elements, and this becomes
+the next element in our output stream.  Continuing this
+adding and subtracting of successive elements will generate an infinite
+stream of successive sums.  Alyssa has provided a template for this:
+
+\beginlisp 
+(define (set-up-sums st n)
+  (let ((start (first-n st n)))  ; get initial sum
+    (let ((sum   (car start))    ; sum of first n elements
+          (front (cdr start))    ; stream beginning at n+1
+          (back st))             ; stream beginning at 1
+     (define running-sum "...?...")  ; To be completed by you
+     running-sum)))
+\endlisp
+
+(a) You need to replace {\cf "...?..."} with an appropriate fragment
+of code.
+
+(b) Now, we can compute a stream of sums of squares of $n$ consecutive
+elements using {\cf set-up-sums} as suggested by the following template, where
+again you must replace {\cf "...?..."} with an appropriate fragment of code.
+
+\beginlisp
+(define (set-up-squares st n)
+  (set-up-sums "...?..." n))   ; To be completed by you
+\endlisp
+
+(c) Test these on {\cf integers}. You may find {\cf plot-streams} useful.
+
+
+\paragraph{Problem~12}  Using the output of {\cf set-up-sums}, we can create
+a stream of mean values.  Write a procedure {\cf (mean-st st n)} which
+computes a stream of sums of $n$ successive elements then creates a
+new stream in which each resulting element is divided by $n$ to give
+the mean of the $n$ elements. Test this on {\cf integers}. Plot it if you like.
+
+
+{\samepage
+\paragraph{Problem~13}  To compute the deviation of a set of values, we can
+use the following formula:
+
+\nopagebreak[4]
+\[\sigma = \sqrt{\left|{{\sum x_i^2} \over n} - m^2\right|}.\]
+
+\nopagebreak[4]
+where $m$ is the mean of the $x_i$'s, and $n$ is the number of $x_i$'s
+in the sum.  Since {\cf set-up-squares} will
+compute a stream of the values of ${\sum x_i^2}$, we can use this in
+conjunction with {\cf mean-st} to write a procedure called {\cf (dev-st
+st n)} which applies the above formula to generate a stream of
+deviations of the signal.
+
+\nopagebreak[4]
+Make it so (i.e., do it). Test it on {\cf integers}. Consider choices for $n$
+of 1, 2, 3. Think about it.}
+
+
+\paragraph{Problem~14}  Given a stream, we can now use the above two
+procedures to produce a new stream: (1) whose first element is a combination
+of the value of the ${n \over 2}$th element of the original stream (that
+is the middle of the set of $n$ values we are going to average) plus the
+mean of the first $n$ elements, plus the deviation of the first $n$
+elements; (2) whose second element is a combination of 
+the value of the ${n \over 2} + 1$st element of the original stream (that
+is the middle of the next set of $n$ values we are going to average) plus the
+mean of the $n$ elements skipping the first one, plus the deviation of
+those elements; ($\infty$) and so on. The template that follows does most of this for
+us.
+
+\beginlisp
+(define (glued-data st n)
+  (combine-streams "...?..."
+                   (nth-tail (round (/ n 2)) st)
+                   (combine-streams "...?..."
+                                    (mean-st st n)
+                                    ( dev-st st n))))
+\endlisp
+
+You need to replace the two {\cf "...?..."}'s with appropriate arguments so
+that the resulting stream is a stream of lists of three elements: the
+signal value, the local mean, and the local deviation. Test it.
+
+
+\paragraph{Problem~15}  We can now write a new marking procedure {\cf new-mark},
+which
+takes as input one of these ``glued'' streams, whose elements are the
+signal values, local means and deviations, and which does the same
+thing that {\cf mark} did in Problem~5, except now it uses the local
+mean and deviation provided by the ``glued'' stream to determine
+significant events.  Do it. Test it. Use the same smoothed, differentiated
+signal(s) you used in Problem~5. Do not expect to get exactly the same result
+you got from problem~5, but it should look fairly similar.
+
+\paragraph{Problem~16}  Finally, write a new version of your simulator, {\cf
+new-simulate}, which has the same behavior as the version in Problem~9, with
+the following changes.
+
+\begin{itemize}
+
+\item It takes an additional argument $r$, which is the size of the running
+      sums to compute for determining means and deviations
+
+\item It uses {\cf new-mark} in place of {\cf mark} to find significant
+      events.
+
+\item The second argument to {\cf get-signal-strength} should be the
+      smoothed stream starting at the ${r \over 2}$th element (you can use
+      {\cf nth-tail} to get this).
+
+\end{itemize}
+
+
+(a) Turn in a listing of your definition.
+
+(b) Try making a test signal using {\cf make-test-signal} with moderate
+amounts of noise (e.g. 2 or 3)  and 
+then applying your procedure to the
+two resulting streams with values of $r$ around 45--55.  At what
+orientation does the prey lie?   Roughly, how far away is it?
+
+(c) Try making a test signal using {\cf make-test-signal-multi} with moderate
+amounts of noise (e.g. 2 or 3) and 
+then applying your procedure to the
+two resulting streams with values of $r$ around 45--55.  At what
+orientation does the prey lie?   Roughly how far away is it?
+Can you tell if the prey is getting closer or further away?
+
+(d) What can you say about the accuracy of this method for computing
+orientation versus the accuracy of computing range?
+
+
+\paragraph{Extra Experimentation}  For fun, you might try varying the free
+parameters in the simulator, namely the amount of noise you add to a
+signal, the amount of smoothing you apply to the result, and the size of
+the neighborhood you use for estimating the mean and variance of the
+signal.  If you like, comment on any observations you can make
+about the effects of changes in these parameters on the performance
+of the system.
+
+\end{document}

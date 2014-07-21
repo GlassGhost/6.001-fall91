@@ -1,0 +1,8 @@
+The file MATCHER-FROM-LECTURE.SCM contains the pattern matcher from
+lecture.  It is NOT the pattern matcher used in PS4, but some students
+like to play with it anyway so I have included it here.
+
+To load and play with the matcher on a Chipmunk, do
+
+[EXTEND] Load Problem Set [ENTER] match [ENTER]
+
